@@ -4,7 +4,7 @@ A 5-minute classroom game for fraud and cybercrime students. The lecturer projec
 
 The scenario: your group is auditing the ID scanning technology used in Queensland Safe Night Precincts. Every scan checks a patron's name, date of birth and photo against a database of people with banning orders. The class maps how offenders could target that system, then recommends how to stop them.
 
-**Play it:** https://USERNAME.github.io/scan-and-scam/
+**Play it:** [https://USERNAME.github.io/scan-and-scam/](https://ausma-b.github.io/scan-and-scam/)
 
 ## The three stages
 
