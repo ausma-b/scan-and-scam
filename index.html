@@ -1,0 +1,1320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Scan &amp; Scam</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Fredoka:wght@500;600;700&display=swap">
+<style>
+/* Single deliberate look: a neon night street. Colours are painted explicitly so the page holds on any host theme. */
+:root{
+  --ink:#120a24; --night:#0b1440; --deep:#060a1f;
+  --panel:#1c1245; --panel2:#2a1d66; --panel3:#352682;
+  --pink:#ff4fa3; --teal:#2ee6d6; --yellow:#ffd23f; --orange:#ff8a3d; --violet:#9b6bff;
+  --cream:#fff6e0; --paper:#fffdf6; --muted:#d6cff7;
+  --right:#3ddc84; --wrong:#ff6b7f;
+  --display:"Fredoka","Baloo 2","Arial Rounded MT Bold","Trebuchet MS",sans-serif;
+  --body:"Atkinson Hyperlegible","Segoe UI",Arial,sans-serif;
+}
+[hidden]{display:none!important}
+html,body{height:100%;margin:0}
+body{background:var(--deep);color:var(--cream);font-family:var(--body);overflow:hidden;-webkit-font-smoothing:antialiased}
+#viewport{position:fixed;inset:0;overflow:hidden;background:var(--deep)}
+#stage{position:absolute;left:50%;top:50%;width:1920px;height:1080px;transform:translate(-50%,-50%) scale(var(--s,0.5));transform-origin:center center;overflow:hidden;background:var(--night);font-size:26px;line-height:1.35}
+#world{position:absolute;left:0;top:0;width:3840px;height:1080px;transform-origin:0 0;transition:transform 1.8s cubic-bezier(.65,0,.35,1);will-change:transform}
+#world svg{display:block}
+#shade{position:absolute;inset:0;background:rgba(6,10,31,.62);opacity:0;transition:opacity 1s ease;pointer-events:none}
+#shade.on{opacity:1}
+.visually-hidden{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+/* ---------- shared pieces ---------- */
+h1,h2,h3{font-family:var(--display);margin:0;line-height:1.05;text-wrap:balance}
+p{margin:0}
+.sticker{background:var(--panel);border:5px solid var(--ink);border-radius:30px;box-shadow:12px 12px 0 var(--ink)}
+.btn{font-family:var(--display);font-weight:600;font-size:34px;line-height:1;color:var(--ink);background:var(--yellow);border:5px solid var(--ink);border-radius:999px;padding:20px 40px;box-shadow:0 8px 0 var(--ink);cursor:pointer;display:inline-flex;align-items:center;gap:14px;transition:transform .12s ease, box-shadow .12s ease, background .2s}
+.btn:hover{transform:translateY(-3px);box-shadow:0 11px 0 var(--ink)}
+.btn:active{transform:translateY(6px);box-shadow:0 2px 0 var(--ink)}
+.btn[disabled]{background:#8e88b3;cursor:not-allowed;transform:none;box-shadow:0 8px 0 var(--ink);opacity:.8}
+.btn.pink{background:var(--pink)}
+.btn.teal{background:var(--teal)}
+.btn.ghost{background:var(--cream)}
+.btn.small{font-size:26px;padding:14px 26px;box-shadow:0 6px 0 var(--ink)}
+.btn svg{width:1em;height:1em;flex:none}
+.key{display:inline-block;font-family:var(--display);font-weight:600;font-size:.8em;padding:1px 10px;border:3px solid currentColor;border-radius:10px;line-height:1.2}
+button{font:inherit}
+:focus-visible{outline:6px solid var(--teal);outline-offset:5px}
+.paper :focus-visible{outline-color:#0a7d74}
+
+/* ---------- top bar ---------- */
+#topbar{position:absolute;left:0;right:0;top:0;height:104px;display:flex;align-items:center;gap:22px;padding:0 26px;background:var(--ink);border-bottom:5px solid #000;z-index:20}
+.brand{font-family:var(--display);font-weight:700;font-size:40px;white-space:nowrap;color:var(--yellow);letter-spacing:.5px}
+.brand span{color:var(--pink)}
+.steps{display:flex;gap:8px;flex:1;min-width:0}
+.step{font-family:var(--display);font-weight:600;font-size:22px;padding:8px 14px;border-radius:999px;border:4px solid #3c2f7a;color:var(--muted);white-space:nowrap;display:inline-flex;align-items:center;gap:8px}
+.step.on{background:var(--yellow);border-color:var(--yellow);color:var(--ink)}
+.step.done{border-color:var(--teal);color:var(--teal)}
+.step svg{width:22px;height:22px}
+.chip{display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:22px;padding:4px 18px;min-width:172px;background:var(--panel2);border:4px solid #3c2f7a}
+.chip .lbl{font-size:18px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);font-weight:700;line-height:1.1}
+.chip .val{font-family:var(--display);font-weight:700;font-size:50px;line-height:1;font-variant-numeric:tabular-nums}
+#timerChip.low .val{color:var(--pink);animation:pulse 1s infinite}
+#timerChip.paused .val{color:var(--muted)}
+#timerChip.off .val{color:var(--muted)}
+#scoreChip .val{color:var(--yellow)}
+#scoreChip{position:relative}
+.plus{position:absolute;right:-6px;top:-10px;font-family:var(--display);font-weight:700;font-size:30px;color:var(--ink);background:var(--right);border:3px solid var(--ink);border-radius:999px;padding:0 12px;animation:floatUp 1.2s ease forwards;pointer-events:none}
+.ctrls{display:flex;gap:8px}
+.ctrl{width:92px;height:84px;border-radius:18px;border:4px solid #3c2f7a;background:var(--panel2);color:var(--cream);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:17px;font-weight:700;letter-spacing:.3px}
+.ctrl svg{width:32px;height:32px}
+.ctrl:hover{background:var(--panel3)}
+.ctrl[aria-pressed="true"]{background:var(--yellow);color:var(--ink);border-color:var(--yellow)}
+
+/* ---------- screens ---------- */
+.screen{position:absolute;left:0;right:0;top:104px;bottom:0;z-index:5}
+
+/* intro */
+.intro-card{position:absolute;left:56px;bottom:40px;width:1040px;padding:32px 44px 30px;display:flex;flex-direction:column;gap:18px}
+.eyebrow{align-self:flex-start;font-family:var(--display);font-weight:600;font-size:24px;letter-spacing:1.5px;text-transform:uppercase;color:var(--ink);background:var(--teal);border:4px solid var(--ink);border-radius:999px;padding:6px 18px}
+.intro-card h1{font-size:108px;color:var(--yellow);text-shadow:6px 6px 0 var(--pink),10px 10px 0 var(--ink);letter-spacing:1px}
+.intro-card h1 .amp{color:var(--teal)}
+.scenario{font-size:27px;line-height:1.42;max-width:62ch;color:var(--cream)}
+.scenario strong{color:var(--yellow)}
+.plan{display:flex;gap:10px;flex-wrap:wrap}
+.plan div{font-size:21px;background:var(--panel2);border:4px solid #3c2f7a;border-radius:18px;padding:8px 16px}
+.plan b{font-family:var(--display);color:var(--teal);font-weight:600}
+.intro-row{display:flex;align-items:center;gap:28px;flex-wrap:wrap}
+.keys{font-size:22px;color:var(--muted);display:flex;gap:18px;flex-wrap:wrap}
+
+/* stage headers */
+.stage-title{display:flex;align-items:baseline;gap:18px;flex-wrap:wrap}
+.stage-title .num{font-family:var(--display);font-weight:700;font-size:28px;color:var(--ink);background:var(--pink);border:4px solid var(--ink);border-radius:14px;padding:2px 14px;transform:rotate(-4deg)}
+.stage-title h2{font-size:54px;color:var(--yellow)}
+.lead{font-size:26px;color:var(--muted)}
+
+/* stage 1 */
+.s1-grid{display:grid;grid-template-columns:720px 1fr;gap:28px;height:100%;padding:22px 30px 30px;box-sizing:border-box}
+.s1-left{position:relative}
+.s1-panel{display:flex;flex-direction:column;gap:16px;padding:24px 30px;min-height:0}
+.pool{min-height:212px;display:flex;flex-wrap:wrap;gap:14px;align-content:flex-start;padding:16px;border-radius:22px;background:rgba(255,246,224,.06);border:4px dashed rgba(255,246,224,.4);box-sizing:border-box}
+.pool:empty::before{content:"All sorted! Press Check answers.";font-size:26px;color:var(--muted);align-self:center;margin:auto}
+.pool.checked{display:none}
+.bins{display:grid;grid-template-columns:1fr 1fr;gap:22px;flex:1;min-height:0}
+.bin{display:flex;flex-direction:column;min-height:0;border:5px solid var(--ink);border-radius:26px;overflow:hidden;background:var(--panel2);box-shadow:8px 8px 0 var(--ink);transition:background .15s}
+.bin-head{font-family:var(--display);font-weight:700;font-size:26px;letter-spacing:1px;text-transform:uppercase;border:0;border-bottom:5px solid var(--ink);padding:14px 18px;cursor:pointer;color:var(--ink);display:flex;align-items:center;justify-content:space-between;gap:10px;text-align:left}
+.bin[data-zone="logged"] .bin-head{background:var(--teal)}
+.bin[data-zone="not"] .bin-head{background:var(--pink)}
+.bin-head .count{font-size:24px;background:var(--ink);color:var(--cream);border-radius:999px;padding:2px 14px}
+.bin-body{flex:1;display:flex;flex-wrap:wrap;align-content:flex-start;gap:10px;padding:14px;overflow:auto;min-height:0}
+.bin-body .card{font-size:23px;padding:7px 14px}
+.zone.hover,.bin.hover{background:var(--panel3);outline:6px dashed var(--yellow);outline-offset:-6px}
+.s1-actions{display:flex;align-items:center;gap:22px}
+.s1-actions .hint{font-size:24px;color:var(--muted)}
+.card{position:relative;font-family:var(--body);font-weight:700;font-size:25px;color:var(--ink);background:var(--cream);border:4px solid var(--ink);border-radius:18px;padding:10px 18px;box-shadow:0 6px 0 var(--ink);cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;display:inline-flex;align-items:center;gap:10px;transition:transform .15s ease, background .25s, box-shadow .15s}
+.card:hover{transform:translateY(-3px)}
+.card.selected{background:var(--yellow);transform:translateY(-6px) rotate(-2deg);box-shadow:0 10px 0 var(--ink);outline:5px solid var(--pink);outline-offset:3px}
+.card.dragging{opacity:.3}
+.card.ghost{position:absolute;z-index:50;pointer-events:none;transform:rotate(-4deg) scale(1.06);box-shadow:10px 14px 0 rgba(18,10,36,.6);cursor:grabbing;margin:0}
+.card .mark{display:none;width:34px;height:34px;border-radius:50%;border:3px solid var(--ink);align-items:center;justify-content:center;flex:none;background:var(--cream)}
+.card .mark svg{width:22px;height:22px}
+.card.is-right{background:var(--right)}
+.card.is-wrong{background:var(--wrong)}
+.card.is-right .mark,.card.is-wrong .mark{display:inline-flex}
+.card.is-wrong{animation:shake .5s ease 2}
+.card .moved{display:none;font-size:18px;font-weight:700;background:var(--ink);color:var(--cream);border-radius:999px;padding:2px 10px}
+.card.was-moved .moved{display:inline}
+.checked .card{cursor:default}
+.note{position:absolute;left:0;right:0;top:0;padding:26px 30px;background:var(--cream);color:var(--ink);animation:popIn .5s cubic-bezier(.2,1.4,.4,1)}
+.note h3{font-size:44px;display:flex;align-items:center;gap:14px}
+.note .tally{font-family:var(--display);font-weight:600;font-size:28px;margin:6px 0 14px;color:#6a1f5a}
+.note ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:14px}
+.note li{display:flex;gap:14px;font-size:25px;line-height:1.35;align-items:flex-start}
+.note li .ico{flex:none;width:48px;height:48px;border-radius:14px;border:4px solid var(--ink);display:flex;align-items:center;justify-content:center;background:var(--yellow)}
+.note li:nth-child(2) .ico{background:var(--teal)}
+.note li:nth-child(3) .ico{background:var(--pink)}
+.note li .ico svg{width:28px;height:28px}
+.tape{position:absolute;top:-18px;left:50%;width:150px;height:36px;margin-left:-75px;background:rgba(255,210,63,.85);border:3px solid var(--ink);transform:rotate(-3deg)}
+
+/* stage 2 */
+.s2-grid{display:grid;grid-template-columns:760px 1fr;gap:26px;height:100%;padding:18px 30px 30px;box-sizing:border-box}
+.wheel-col{display:flex;flex-direction:column;align-items:center;gap:16px}
+#wheel{width:660px;height:680px;filter:drop-shadow(10px 12px 0 rgba(18,10,36,.85))}
+#wheel .pointer{transform-box:fill-box;transform-origin:50% 0}
+#wheel .pointer.flick{animation:flick .12s ease}
+.spin-row{display:flex;align-items:center;gap:20px}
+.pips{display:flex;gap:10px}
+.pip{width:26px;height:26px;border-radius:50%;border:4px solid var(--ink);background:var(--cream)}
+.pip.used{background:var(--pink)}
+.s2-panel{padding:28px 34px;display:flex;flex-direction:column;gap:16px;min-height:0;overflow:auto}
+.scn-tag{align-self:flex-start;font-family:var(--display);font-weight:600;font-size:24px;letter-spacing:1px;text-transform:uppercase;color:var(--ink);border:4px solid var(--ink);border-radius:999px;padding:4px 16px}
+.s2-panel h2{font-size:52px;color:var(--yellow)}
+.story{font-size:27px;line-height:1.45;background:rgba(255,246,224,.08);border-left:8px solid var(--teal);padding:12px 18px;border-radius:0 16px 16px 0}
+.qhead{display:flex;align-items:baseline;gap:16px}
+.qcount{font-family:var(--display);font-weight:600;font-size:24px;color:var(--teal);white-space:nowrap}
+.qhead h3{font-size:38px;color:var(--cream)}
+.opts{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.opt{font-family:var(--body);font-weight:700;font-size:25px;line-height:1.3;text-align:left;color:var(--ink);background:var(--cream);border:4px solid var(--ink);border-radius:20px;padding:14px 16px;box-shadow:0 6px 0 var(--ink);cursor:pointer;display:flex;align-items:center;gap:14px;transition:transform .12s, background .2s, opacity .2s}
+.opt:hover:not([disabled]){transform:translateY(-3px);background:#fff}
+.opt[disabled]{cursor:default}
+.opt .k{flex:none;width:44px;height:44px;border-radius:12px;background:var(--ink);color:var(--cream);font-family:var(--display);font-weight:700;font-size:26px;display:flex;align-items:center;justify-content:center}
+.opt .t{flex:1}
+.opt .m{display:none;flex:none;align-items:center;gap:6px;font-size:18px;font-weight:700;background:var(--ink);color:var(--cream);border-radius:999px;padding:4px 10px 4px 6px;white-space:nowrap}
+.opt .m svg{width:20px;height:20px}
+.opt.is-right{background:var(--right)}
+.opt.is-wrong{background:var(--wrong);animation:shake .45s ease}
+.opt.is-right .m,.opt.is-wrong .m{display:inline-flex}
+.opt.dim{opacity:.5}
+.explain{display:flex;align-items:center;gap:20px}
+.explain p{flex:1;font-size:25px;line-height:1.4;padding:14px 18px;border-radius:18px;border:4px solid var(--ink);background:var(--cream);color:var(--ink)}
+.explain p b{font-family:var(--display);font-weight:700}
+.idle{display:flex;flex-direction:column;gap:20px}
+.idle .big{font-size:30px;line-height:1.45}
+.done-list{display:flex;flex-direction:column;gap:12px;list-style:none;padding:0;margin:0}
+.done-list li{display:flex;align-items:center;gap:14px;font-size:26px;background:rgba(255,246,224,.08);border-radius:16px;padding:10px 16px}
+.dot{width:28px;height:28px;border-radius:50%;border:4px solid var(--ink);flex:none}
+.done-list .sc{margin-left:auto;font-family:var(--display);font-weight:600;color:var(--yellow)}
+
+/* stage 3 : clipboard */
+.board-wrap{position:absolute;inset:14px 60px 26px;display:flex;justify-content:center}
+.board{position:relative;width:100%;max-width:1760px;background:#b9793f;border:6px solid var(--ink);border-radius:40px;box-shadow:14px 14px 0 var(--ink);padding:54px 30px 28px;box-sizing:border-box;display:flex}
+.clip{position:absolute;top:-30px;left:50%;width:320px;height:74px;margin-left:-160px;background:linear-gradient(#e8ecf5,#9aa3bd);border:6px solid var(--ink);border-radius:22px 22px 30px 30px}
+.clip::after{content:"";position:absolute;left:50%;top:14px;width:90px;height:24px;margin-left:-45px;border-radius:14px;background:#5a6180;border:4px solid var(--ink)}
+.paper{flex:1;background:var(--paper);color:var(--ink);border:5px solid var(--ink);border-radius:18px;padding:22px 30px;display:flex;flex-direction:column;gap:14px;min-height:0;background-image:repeating-linear-gradient(transparent 0 46px, rgba(46,120,230,.10) 46px 48px)}
+.paper-head{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;flex-wrap:wrap;border-bottom:4px solid var(--ink);padding-bottom:10px}
+.paper-head h2{font-size:52px;color:var(--ink)}
+.paper-head .meta{font-size:22px;color:#4a3f6b;text-align:right}
+.paper-head .meta b{font-family:var(--display);font-size:30px;color:#a3185f}
+.rgrid{flex:1;display:grid;grid-template-columns:1fr 1fr;gap:16px;min-height:0;overflow:auto;padding:4px}
+.rbox{border:4px solid var(--ink);border-radius:20px;background:#fff;padding:14px 18px;display:flex;flex-direction:column;gap:8px}
+.rbox-top{display:flex;align-items:center;gap:12px}
+.rbox-top h3{font-size:30px;flex:1}
+.rbox-top .sc{font-size:20px;font-weight:700;background:var(--ink);color:var(--cream);border-radius:999px;padding:3px 12px;white-space:nowrap}
+.rbox label{font-size:22px;font-weight:700;color:#3b2f5c}
+.rbox textarea{font-family:var(--body);font-size:24px;line-height:1.35;color:var(--ink);background:#fffef8;border:3px solid var(--ink);border-radius:14px;padding:10px 12px;resize:none;min-height:88px;flex:1}
+.rbox textarea::placeholder{color:#6d6490}
+.hint-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;min-height:44px}
+.hint-btn{font-family:var(--display);font-weight:600;font-size:22px;background:var(--yellow);color:var(--ink);border:3px solid var(--ink);border-radius:999px;padding:6px 16px;cursor:pointer;box-shadow:0 4px 0 var(--ink)}
+.hint-chip{font-size:21px;font-weight:700;background:#e6fbf8;border:3px solid #0a7d74;color:#064e48;border-radius:999px;padding:4px 14px;animation:popIn .35s ease both}
+.rbox.surprise{background:#fff3fa}
+.paper-actions{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.paper-actions .spacer{flex:1}
+
+/* end */
+.end-card{position:absolute;left:50%;top:50%;transform:translate(-50%,-52%);width:1060px;padding:44px 56px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:18px;animation:popIn .6s cubic-bezier(.2,1.4,.4,1)}
+.end-card h2{font-size:64px;color:var(--yellow)}
+.final{font-family:var(--display);font-weight:700;font-size:150px;line-height:1;color:var(--cream);text-shadow:6px 6px 0 var(--pink),10px 10px 0 var(--ink)}
+.final small{font-size:60px;color:var(--muted);text-shadow:none}
+.rank{display:flex;align-items:center;gap:18px;font-family:var(--display);font-weight:700;font-size:50px;color:var(--ink);background:var(--teal);border:5px solid var(--ink);border-radius:999px;padding:10px 34px 10px 14px}
+.rank svg{width:70px;height:70px}
+.end-card .blurb{font-size:28px;max-width:44ch}
+.end-row{display:flex;gap:18px;flex-wrap:wrap;justify-content:center;margin-top:6px}
+#confetti{position:absolute;inset:0;pointer-events:none;z-index:40}
+
+/* overlays */
+.overlay{position:absolute;inset:0;z-index:60;display:flex;align-items:center;justify-content:center;background:rgba(6,10,31,.55)}
+.dialog{padding:44px 56px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:22px;max-width:1100px;animation:popIn .45s cubic-bezier(.2,1.4,.4,1)}
+.dialog h2{font-size:96px;color:var(--yellow);text-shadow:6px 6px 0 var(--pink),9px 9px 0 var(--ink)}
+.dialog p{font-size:30px;max-width:40ch}
+.dialog .row{display:flex;gap:20px;flex-wrap:wrap;justify-content:center}
+.dialog textarea{width:1000px;height:520px;font-family:var(--body);font-size:22px;border:4px solid var(--ink);border-radius:16px;padding:14px;color:var(--ink);background:var(--paper)}
+.dialog.confirm h2{font-size:64px}
+#toast{position:absolute;left:50%;bottom:38px;transform:translateX(-50%);z-index:70;font-family:var(--display);font-weight:600;font-size:30px;background:var(--cream);color:var(--ink);border:5px solid var(--ink);border-radius:999px;padding:12px 30px;box-shadow:0 8px 0 var(--ink);animation:popIn .3s ease}
+#rotate{display:none}
+@media (orientation:portrait) and (max-width:900px){#rotate{display:block;position:fixed;left:16px;right:16px;bottom:16px;z-index:100;background:var(--yellow);color:var(--ink);font:700 16px/1.3 var(--body);padding:12px 16px;border-radius:14px;border:3px solid var(--ink);text-align:center}}
+
+/* scene ambience */
+.neon.f1{animation:flicker 5s infinite}
+.neon.f2{animation:flicker 7.3s infinite 1.2s}
+.neon.f3{animation:flicker 4.1s infinite .6s}
+.tw{animation:twinkle 1.6s ease-in-out infinite}
+.tw.d1{animation-delay:.4s}.tw.d2{animation-delay:.8s}.tw.d3{animation-delay:1.2s}
+.bob{animation:bob 1.3s ease-in-out infinite}
+.sway{transform-box:fill-box;transform-origin:50% 0;animation:sway 3s ease-in-out infinite}
+.beam{animation:scanbeam 1.6s ease-in-out infinite}
+.flash{animation:camflash 2.6s steps(1) infinite}
+.tail{transform-box:fill-box;transform-origin:0 0;animation:sway 2.4s ease-in-out infinite}
+.dance{transform-box:fill-box;transform-origin:50% 100%;animation:dance 1s ease-in-out infinite}
+.fall{transform-box:fill-box;transform-origin:50% 50%;animation:tumble 2.2s ease-in-out infinite}
+
+@keyframes flicker{0%,17%,19%,21%,52%,54%,100%{opacity:1}18%,20%,53%{opacity:.3}}
+@keyframes twinkle{0%,100%{opacity:1}50%{opacity:.35}}
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-9px)}}
+@keyframes sway{0%,100%{transform:rotate(-5deg)}50%{transform:rotate(5deg)}}
+@keyframes scanbeam{0%,100%{transform:translateY(0)}50%{transform:translateY(34px)}}
+@keyframes camflash{0%,86%{opacity:0}88%,94%{opacity:1}96%{opacity:0}}
+@keyframes dance{0%,100%{transform:rotate(-6deg)}50%{transform:rotate(6deg) translateY(-6px)}}
+@keyframes tumble{0%,100%{transform:rotate(-20deg) translateY(0)}50%{transform:rotate(25deg) translateY(-14px)}}
+@keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-12px) rotate(-2deg)}40%{transform:translateX(12px) rotate(2deg)}60%{transform:translateX(-8px)}80%{transform:translateX(8px)}}
+@keyframes popIn{0%{transform:scale(.85);opacity:0}100%{transform:scale(1);opacity:1}}
+.end-card{animation-name:popInC}
+@keyframes popInC{0%{transform:translate(-50%,-52%) scale(.85);opacity:0}100%{transform:translate(-50%,-52%) scale(1);opacity:1}}
+@keyframes floatUp{0%{transform:translateY(0);opacity:1}100%{transform:translateY(-40px);opacity:0}}
+@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
+@keyframes flick{0%{transform:rotate(0)}50%{transform:rotate(-14deg)}100%{transform:rotate(0)}}
+
+@media (prefers-reduced-motion:reduce){
+  #world{transition-duration:.01s}
+  .neon,.tw,.bob,.sway,.beam,.flash,.tail,.dance,.fall,.card.is-wrong,.opt.is-wrong,#timerChip.low .val{animation:none!important}
+}
+
+/* print: only the report */
+#printArea{display:none}
+@media print{
+  body{background:#fff;color:#000;overflow:visible}
+  #viewport,#rotate{display:none!important}
+  #printArea{display:block;font:12pt/1.5 var(--body);color:#000;padding:0}
+  #printArea h1{font:700 24pt var(--display);margin:0 0 4pt}
+  #printArea h2{font:600 15pt var(--display);margin:16pt 0 6pt;border-bottom:1.5pt solid #000;padding-bottom:3pt}
+  #printArea pre{white-space:pre-wrap;font:inherit;margin:0}
+}
+</style>
+</head>
+<body>
+
+
+<div id="viewport">
+  <div id="stage" role="application" aria-label="Scan and Scam classroom game">
+    <div id="world" aria-hidden="true"></div>
+    <div id="shade"></div>
+
+    <header id="topbar">
+      <div class="brand">Scan <span>&amp;</span> Scam</div>
+      <nav class="steps" id="steps" aria-label="Game stages"></nav>
+      <div class="chip" id="timerChip" aria-live="off"><span class="lbl" id="timerLbl">Time</span><span class="val" id="timerVal">–:––</span></div>
+      <div class="chip" id="scoreChip"><span class="lbl">Team score</span><span class="val" id="scoreVal">0</span></div>
+      <div class="ctrls">
+        <button class="ctrl" id="pauseBtn" type="button" aria-pressed="false" title="Pause timer (P)"></button>
+        <button class="ctrl" id="skipBtn" type="button" title="Skip to the next stage"></button>
+        <button class="ctrl" id="muteBtn" type="button" aria-pressed="false" title="Sound on/off (M)"></button>
+        <button class="ctrl" id="restartBtn" type="button" title="Restart the game (R)"></button>
+      </div>
+    </header>
+
+    <section class="screen" data-screen="intro" id="scr-intro"></section>
+    <section class="screen" data-screen="s1" id="scr-s1" hidden></section>
+    <section class="screen" data-screen="s2" id="scr-s2" hidden></section>
+    <section class="screen" data-screen="s3" id="scr-s3" hidden></section>
+    <section class="screen" data-screen="end" id="scr-end" hidden></section>
+
+    <canvas id="confetti" width="1920" height="1080"></canvas>
+    <div class="overlay" id="timesUp" hidden></div>
+    <div class="overlay" id="confirmBox" hidden></div>
+    <div class="overlay" id="copyBox" hidden></div>
+    <div id="toast" role="status" hidden></div>
+    <div class="visually-hidden" id="live" aria-live="polite"></div>
+  </div>
+</div>
+<div id="rotate">Turn your device sideways: this game is built for a landscape screen or projector.</div>
+<div id="printArea"></div>
+
+<script>
+/* =====================================================================
+   gameContent: edit everything the class sees here. No logic below
+   needs to change when you swap cards, scenarios, hints or timings.
+   ===================================================================== */
+const gameContent = {
+  title: "Scan & Scam",
+  location: "Safe Night Precinct · Fortitude Valley, QLD",
+  scenarioText: "Your group has been brought in to conduct a <strong>safety audit on ID scanning technologies</strong> used in Safe Night Precincts in QLD. Every time your ID is scanned at a venue, your name, date of birth and photo are cross-checked against a database of people who've got a banning order against them. Your job: <strong>map how offenders might target and exploit these systems</strong>, then recommend how to stop them.",
+
+  // Seconds per stage. The intro time is a guide only (no countdown alarm).
+  timings: { intro: 20, stage1: 90, stage2: 150, stage3: 90, extendBy: 30 },
+  points: { card: 10, question: 10 },
+
+  stageNames: {
+    intro: "Briefing",
+    s1: "What does the scanner log?",
+    s2: "Spin the Threat Wheel",
+    s3: "Audit report: prevention"
+  },
+
+  stage1: {
+    instruction: "Drag each card into a bin, or tap a card and then tap a bin.",
+    bins: { logged: "Logged by the scanner", not: "Not logged" },
+    cards: [
+      { id: "name",    text: "Full name",                 logged: true  },
+      { id: "dob",     text: "Date of birth",             logged: true  },
+      { id: "photo",   text: "Photo from the ID",         logged: true  },
+      { id: "time",    text: "Date and time of the scan", logged: true  },
+      { id: "venue",   text: "Which venue scanned you",   logged: true  },
+      { id: "phone",   text: "Phone number",              logged: false },
+      { id: "email",   text: "Email address",             logged: false },
+      { id: "drinks",  text: "How much you drank",        logged: false },
+      { id: "friends", text: "Who you arrived with",      logged: false },
+      { id: "bank",    text: "Bank card details",         logged: false }
+    ],
+    auditorNote: [
+      "Scanners cross-check your name, date of birth and photo against a database of people with banning orders.",
+      "Scanned personal information is automatically deleted after 30 days.",
+      "Access is restricted to a few people (e.g. venue management), every login is audited, and Queensland Police and the liquor regulator (OLGR) can request the data."
+    ]
+  },
+
+  stage2: {
+    spins: 3,
+    spinSeconds: 3.2,
+    shuffleOptions: true,   // shuffle A–D order each game
+    prompts: ["Who is the likely offender?", "How do they exploit the system?", "What's the main harm?"],
+    scenarios: [
+      {
+        id: "insider", wheelLabel: ["Insider", "snooping"], color: "#ff4fa3",
+        title: "The Nosy Bouncer",
+        story: "Dazza works the door at Club Cassowary and has a login to the scanner system. After a messy break-up, he starts searching his ex-partner's name to see which venues she's been scanned into, and when.",
+        hints: ["least-privilege access", "audit logs & alerts", "staff training & sanctions"],
+        questions: [
+          { options: ["A trusted insider with legitimate system access", "An organised cybercrime group", "A foreign state hacker", "The ex-partner herself"], correct: 0,
+            explanation: "Dazza already has a login. Insiders don't need to break in, which makes their misuse harder to spot." },
+          { options: ["He uses his legitimate access for a purpose it was never granted for", "He hacks the vendor's cloud servers", "He installs malware on the scanner", "He phishes the venue manager's password"], correct: 0,
+            explanation: "The system works exactly as designed; the purpose is what's wrong. Audited logins are how this gets caught." },
+          { options: ["Stalking and a threat to her personal safety", "The venue gets fined for serving alcohol", "The scanner runs out of storage", "Longer queues at the door"], correct: 0,
+            explanation: "Scan history reveals someone's movements and routines. In the wrong hands, that's a map for stalking or coercive control." }
+        ]
+      },
+      {
+        id: "vendor", wheelLabel: ["Vendor", "hack"], color: "#2ee6d6",
+        title: "The Cloud Heist",
+        story: "A ransomware gang breaks into the servers of the company that runs the precinct's scanners, which hold 30 days of ID scans from every venue. They copy everything, then demand payment.",
+        hints: ["encryption", "vendor due diligence", "data minimisation"],
+        questions: [
+          { options: ["Organised cybercriminals", "A single bouncer", "A patron who lost their licence", "The liquor regulator"], correct: 0,
+            explanation: "Breaching a vendor and monetising the data takes skills, tools and a business model: the hallmarks of organised cybercrime." },
+          { options: ["Breaching a third-party provider that holds data for many venues", "Shoulder-surfing IDs at the door", "Asking police for the data", "Photographing IDs in the queue"], correct: 0,
+            explanation: "One vendor, many venues. Attacking the supplier is a supply-chain breach that gets everything at once." },
+          { options: ["Identity fraud at scale across thousands of patrons", "One patron's night is spoiled", "The venue's music licence is revoked", "The scanner shows the wrong time"], correct: 0,
+            explanation: "Names, dates of birth and ID photos for thousands of people are a ready-made identity-fraud kit. The 30-day deletion rule limits the damage but doesn't remove it." }
+        ]
+      },
+      {
+        id: "fake", wheelLabel: ["Fake", "scanner"], color: "#ffd23f",
+        title: "The Pop-Up Imposter",
+        story: "A pop-up rooftop party sets up a tablet that looks just like a real ID scanner. It beeps and flashes green like the real thing, but the app quietly saves a full copy of every licence it sees and uploads it to the organiser.",
+        hints: ["approved devices only", "device registration", "patron awareness"],
+        questions: [
+          { options: ["A fraudster posing as a legitimate operator", "An approved scanner vendor", "Queensland Police", "A patron's friend"], correct: 0,
+            explanation: "The whole event is a front. The offender relies on patrons assuming any scanner at a door is official." },
+          { options: ["A rogue look-alike device that skims IDs", "Credential phishing", "Insider misuse of scan logs", "Selling data to a broker"], correct: 0,
+            explanation: "Like a card skimmer on an ATM, a rogue device copies whatever it reads. Only approved, registered scanners should be used." },
+          { options: ["Patrons lose control of copies of their identity documents", "Too many people get into the party", "The music is too loud", "The venue's banned list goes out of date"], correct: 0,
+            explanation: "Stolen licence images can be used to open accounts or make fake IDs, and you can't 'cancel' your face or date of birth." }
+        ]
+      },
+      {
+        id: "photo", wheelLabel: ["Photo", "re-use"], color: "#ff8a3d",
+        title: "The Face Swap Factory",
+        story: "Leaked scan data (photos, names and dates of birth) turns up for sale online. A group buys it in bulk, prints fake licences and uses the photos to get past online 'selfie + ID' checks.",
+        hints: ["delete data on schedule", "liveness checks", "breach notification"],
+        questions: [
+          { options: ["An identity fraud ring", "A lone bouncer", "The scanner vendor's IT team", "A privacy regulator"], correct: 0,
+            explanation: "Buying data in bulk and turning it into fake documents and accounts is organised identity crime." },
+          { options: ["Combining leaked photos, names and dates of birth to impersonate real people", "Setting up a fake scanner", "Phishing a venue manager", "Building marketing profiles"], correct: 0,
+            explanation: "Each field alone is weak; combined, they're enough to pass as someone else. That's why data minimisation matters." },
+          { options: ["Fraudulent accounts and loans opened in victims' names", "The venue gets bad online reviews", "Victims' banning orders are lifted", "Queues move faster"], correct: 0,
+            explanation: "Victims can face debts, a damaged credit history and years of clean-up for accounts they never opened." }
+        ]
+      },
+      {
+        id: "phish", wheelLabel: ["Phishing", "email"], color: "#9b6bff",
+        title: "The 'Urgent' Email",
+        story: "The manager of Mango Moon gets an email that looks like it's from the scanner provider: 'Security alert! Log in within 24 hours to verify your system.' The link goes to a perfect copy of the login page.",
+        hints: ["multi-factor authentication", "phishing training", "verify via a known contact"],
+        questions: [
+          { options: ["A cybercriminal impersonating the vendor", "The venue manager", "The real scanner provider", "A bouncer on shift"], correct: 0,
+            explanation: "The manager is the target, not the offender. The attacker borrows the vendor's name to seem trustworthy." },
+          { options: ["Stealing login details with a fake page (credential phishing)", "Physically stealing the scanner", "Combining leaked photos", "Reusing data for marketing"], correct: 0,
+            explanation: "Urgency plus a look-alike login page is classic credential phishing. Multi-factor authentication would blunt it." },
+          { options: ["Unauthorised access to every scan record the venue holds", "The manager's inbox fills up", "The venue has to buy a new scanner", "Patrons get marketing emails"], correct: 0,
+            explanation: "Manager accounts have the widest access, so one stolen password can expose 30 days of every patron's data." }
+        ]
+      },
+      {
+        id: "creep", wheelLabel: ["Function", "creep"], color: "#5fd35f",
+        title: "The Data Side Hustle",
+        story: "Club Cassowary's owner notices the scan data shows who comes in, how old they are and how often. He starts building marketing profiles and sells them to a data broker for extra cash.",
+        hints: ["purpose limitation", "independent privacy audits", "penalties & regulator oversight"],
+        questions: [
+          { options: ["The business itself", "An outside hacker", "A police officer", "A patron"], correct: 0,
+            explanation: "No break-in needed: the organisation collecting the data is the one misusing it." },
+          { options: ["Using the data for a purpose beyond what it was collected for", "Credential phishing", "A rogue scanner", "A ransomware attack"], correct: 0,
+            explanation: "Data collected to enforce banning orders is being reused for profit. That's classic function creep." },
+          { options: ["A privacy breach and loss of public trust in ID scanning", "The music licence lapses", "The scanner battery dies", "Faster entry for regulars"], correct: 0,
+            explanation: "Patrons were scanned for safety, not sales. Secondary use breaches privacy principles and erodes trust in the whole scheme." }
+        ]
+      }
+    ]
+  },
+
+  stage3: {
+    strategyPrompt: "What preventative strategy would stop this?",
+    surprisePrompt: "One thing that surprised us about ID scanning",
+    hintLabel: "Need a hint?"
+  },
+
+  // Rank by share of the maximum possible score.
+  ranks: [
+    { min: 0,   title: "Rookie auditor",        blurb: "You've spotted the basics. Time to sharpen that threat radar." },
+    { min: 0.5, title: "Senior auditor",        blurb: "Solid audit. A few blind spots, but the precinct is safer for it." },
+    { min: 0.8, title: "Chief privacy officer", blurb: "Outstanding. You'd make the scanner vendor very nervous." }
+  ]
+};
+</script>
+
+<script>
+(function(){
+"use strict";
+const C = gameContent;
+const INK = "#120a24";
+const $ = (s, r) => (r || document).querySelector(s);
+const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
+const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const stageEl = $("#stage");
+const reduced = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+const SCN = C.stage2.scenarios;
+const SPINS = Math.min(C.stage2.spins, SCN.length);
+const MAX_SCORE = C.stage1.cards.length * C.points.card + SPINS * 3 * C.points.question;
+
+/* ---------------- icons ---------------- */
+const I = {
+  tick: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12.5l5 5L20 6.5" fill="none" stroke="currentColor" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  cross: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="3.6" stroke-linecap="round"/></svg>',
+  pause: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="4" width="5" height="16" rx="1.5" fill="currentColor"/><rect x="14" y="4" width="5" height="16" rx="1.5" fill="currentColor"/></svg>',
+  play: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l12-7.5z" fill="currentColor"/></svg>',
+  skip: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5v14l10-7zM15 5v14l0 0" fill="currentColor"/><rect x="16" y="5" width="4" height="14" rx="1" fill="currentColor"/></svg>',
+  soundOff: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9h4l5-4v14l-5-4H3z" fill="currentColor"/><path d="M16 9l5 6M21 9l-5 6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>',
+  soundOn: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9h4l5-4v14l-5-4H3z" fill="currentColor"/><path d="M16 8.5a5 5 0 010 7M18.5 6a8.5 8.5 0 010 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>',
+  restart: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12a7 7 0 107-7H8" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/><path d="M9 1.5L5.5 5 9 8.5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  arrow: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h15M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  search: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10" cy="10" r="6" fill="none" stroke="#120a24" stroke-width="3"/><path d="M15 15l5 5" stroke="#120a24" stroke-width="3.4" stroke-linecap="round"/></svg>',
+  bin: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7h14l-1.2 13H6.2zM3.5 7h17M9 7V4h6v3" fill="none" stroke="#120a24" stroke-width="2.6" stroke-linejoin="round" stroke-linecap="round"/><text x="12" y="17.5" text-anchor="middle" font-size="7" font-weight="700" fill="#120a24" font-family="Arial">30</text></svg>',
+  lock: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4.5" y="10.5" width="15" height="10" rx="2" fill="none" stroke="#120a24" stroke-width="2.8"/><path d="M8 10.5V8a4 4 0 018 0v2.5" fill="none" stroke="#120a24" stroke-width="2.8"/></svg>',
+  copy: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="13" rx="2" fill="none" stroke="currentColor" stroke-width="2.6"/><path d="M5 16V5a2 2 0 012-2h9" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg>',
+  download: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M6.5 10L12 15.5 17.5 10M4 20h16" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  print: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 9V3h10v6M7 17H4v-7h16v7h-3M7 14h10v7H7z" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"/></svg>'
+};
+
+/* ================= SOUND (off by default) ================= */
+const Sound = {
+  ctx: null, muted: true,
+  ensure(){ if (!this.ctx) { try { this.ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) { this.ctx = null; } }
+    if (this.ctx && this.ctx.state === "suspended") this.ctx.resume().catch(()=>{}); },
+  tone(f, d, type, v, delay){
+    if (this.muted || !this.ctx) return;
+    try {
+      const t = this.ctx.currentTime + (delay || 0);
+      const o = this.ctx.createOscillator(), g = this.ctx.createGain();
+      o.type = type || "sine"; o.frequency.setValueAtTime(f, t);
+      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(v || 0.15, t + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + d);
+      o.connect(g); g.connect(this.ctx.destination); o.start(t); o.stop(t + d + 0.02);
+    } catch(e) {}
+  },
+  tick(){ this.tone(1500, 0.035, "square", 0.05); },
+  pop(){ this.tone(520, 0.07, "triangle", 0.12); },
+  good(){ this.tone(660, 0.12, "triangle", 0.16); this.tone(990, 0.2, "triangle", 0.16, 0.1); },
+  bad(){ this.tone(180, 0.28, "sawtooth", 0.07); },
+  land(){ [523,659,784].forEach((f,i)=>this.tone(f, 0.18, "triangle", 0.14, i*0.08)); },
+  timesUp(){ [784,659,523].forEach((f,i)=>this.tone(f, 0.28, "sine", 0.18, i*0.16)); },
+  fanfare(){ [523,659,784,1047].forEach((f,i)=>this.tone(f, 0.3, "triangle", 0.16, i*0.12)); }
+};
+
+/* ================= SCENE (inline SVG) ================= */
+function rng(seed){ let s = seed; return () => { s = (s * 16807) % 2147483647; return (s - 1) / 2147483646; }; }
+
+function person(o){
+  const x=o.x, y=o.y, s=o.s||1, body=o.body||"#ff4fa3", skin=o.skin||"#f2c29b", hair=o.hair||"#2b1a12",
+        hs=o.hs||"short", pants=o.pants||"#2a2350", mood=o.mood||"smile", arms=o.arms||"down";
+  const arm = (x1,y1,x2,y2,col) => `<path d="M${x1} ${y1} L${x2} ${y2}" stroke="${INK}" stroke-width="31" fill="none"/><path d="M${x1} ${y1} L${x2} ${y2}" stroke="${col||body}" stroke-width="19" fill="none"/><circle cx="${x2}" cy="${y2}" r="12" fill="${skin}"/>`;
+  let g = "";
+  g += `<rect x="-28" y="-64" width="24" height="64" rx="10" fill="${pants}"/><rect x="4" y="-64" width="24" height="64" rx="10" fill="${pants}"/>`;
+  g += `<ellipse cx="-17" cy="2" rx="20" ry="10" fill="${INK}"/><ellipse cx="17" cy="2" rx="20" ry="10" fill="${INK}"/>`;
+  const sleeve = o.vest ? "#242038" : body;
+  if (arms === "down") g += arm(-30,-132,-52,-74,sleeve) + arm(30,-132,52,-74,sleeve);
+  if (arms === "up") g += arm(-30,-132,-66,-218,sleeve) + arm(30,-132,66,-218,sleeve);
+  if (arms === "wave") g += arm(-30,-132,-52,-74,sleeve) + arm(30,-132,70,-214,sleeve);
+  if (arms === "selfie") g += arm(-30,-132,-52,-74,sleeve) + arm(30,-132,78,-222,sleeve);
+  if (arms === "hold") g += arm(-30,-132,-52,-74,sleeve) + arm(30,-132,74,-120,sleeve);
+  g += `<rect x="-42" y="-154" width="84" height="104" rx="32" fill="${o.vest ? "#242038" : body}"/>`;
+  if (o.vest) {
+    g += `<rect x="-40" y="-150" width="80" height="94" rx="28" fill="#d9f23a"/><rect x="-7" y="-152" width="14" height="96" fill="#242038" stroke="none"/>`;
+    g += `<rect x="-40" y="-116" width="80" height="11" fill="#e9eef5" stroke-width="3"/><rect x="-40" y="-88" width="80" height="11" fill="#e9eef5" stroke-width="3"/>`;
+  }
+  if (o.police) g += `<rect x="-20" y="-140" width="16" height="12" rx="3" fill="#ffd23f" stroke-width="3"/>`;
+  if (arms === "cross") g += `<rect x="-50" y="-128" width="100" height="30" rx="15" fill="${o.vest ? "#242038" : body}"/><circle cx="-44" cy="-113" r="11" fill="${skin}"/><circle cx="44" cy="-113" r="11" fill="${skin}"/>`;
+  if (hs === "long") g += `<path d="M-54 -200 Q-58 -266 0 -266 Q58 -266 54 -200 L56 -150 Q40 -144 34 -162 L-34 -162 Q-40 -144 -56 -150 Z" fill="${hair}"/>`;
+  if (hs === "bun") g += `<circle cx="0" cy="-268" r="22" fill="${hair}"/>`;
+  g += `<circle cx="0" cy="-206" r="52" fill="${skin}"/>`;
+  if (hs === "short" || hs === "bun" || hs === "long") g += `<path d="M-52 -210 Q-52 -264 0 -264 Q52 -264 52 -210 Q36 -238 0 -240 Q-36 -238 -52 -210 Z" fill="${hair}"/>`;
+  if (hs === "curly") [[-40,-236],[-18,-256],[8,-262],[32,-252],[46,-228],[-50,-212]].forEach(p => g += `<circle cx="${p[0]}" cy="${p[1]}" r="21" fill="${hair}"/>`);
+  if (hs === "spiky") g += `<path d="M-52 -214 L-46 -262 L-26 -240 L-12 -276 L4 -244 L22 -274 L32 -240 L52 -258 L52 -212 Q30 -234 0 -236 Q-30 -234 -52 -214 Z" fill="${hair}"/>`;
+  if (o.cap) g += `<rect x="-52" y="-270" width="104" height="40" rx="12" fill="#1b2a5c"/><rect x="-52" y="-246" width="104" height="14" fill="url(#checker)" stroke-width="3"/><path d="M-56 -232 Q0 -220 64 -234 L68 -222 Q0 -206 -56 -220 Z" fill="#0e1633"/>`;
+  if (o.beanie) g += `<path d="M-54 -214 Q-54 -272 0 -272 Q54 -272 54 -214 Z" fill="${o.beanie}"/><rect x="-56" y="-226" width="112" height="18" rx="9" fill="${o.beanie}"/>`;
+  g += `<circle cx="-30" cy="-186" r="9" fill="#ff7aa8" opacity=".55" stroke="none"/><circle cx="30" cy="-186" r="9" fill="#ff7aa8" opacity=".55" stroke="none"/>`;
+  g += `<circle cx="-17" cy="-206" r="6.5" fill="${INK}" stroke="none"/><circle cx="17" cy="-206" r="6.5" fill="${INK}" stroke="none"/>`;
+  if (mood === "smile") g += `<path d="M-14 -184 Q0 -172 14 -184" fill="none" stroke-width="4.5"/>`;
+  if (mood === "grin") g += `<path d="M-17 -188 Q0 -164 17 -188 Z" fill="#fff"/>`;
+  if (mood === "o") g += `<ellipse cx="0" cy="-180" rx="8" ry="11" fill="${INK}" stroke="none"/>`;
+  if (mood === "flat") g += `<path d="M-12 -182 L12 -182" stroke-width="4.5"/>`;
+  if (arms === "selfie") g += `<rect x="64" y="-262" width="28" height="42" rx="6" fill="${INK}"/><path class="flash" d="M78 -284 l6 12 13 2 -10 9 3 13 -12 -7 -12 7 3 -13 -10 -9 13 -2z" fill="#fffbe0" stroke="#fff" stroke-width="2"/>`;
+  if (arms === "hold") g += `<rect x="70" y="-138" width="44" height="30" rx="5" fill="#e9f6ff" stroke-width="3.5"/><rect x="75" y="-132" width="12" height="16" fill="#9b6bff" stroke="none"/>`;
+  if (o.extra) g += o.extra;
+  const inner = o.bob ? `<g class="bob" style="animation-delay:${o.delay||0}s">${g}</g>` : (o.dance ? `<g class="dance" style="animation-delay:${o.delay||0}s">${g}</g>` : g);
+  return `<g transform="translate(${x} ${y}) scale(${o.flip ? -s : s} ${s})">${inner}</g>`;
+}
+
+function awning(x, y, w, c1, c2){
+  let g = "", n = Math.round(w / 44), sw = w / n;
+  for (let i = 0; i < n; i++) g += `<rect x="${x + i*sw}" y="${y}" width="${sw}" height="46" fill="${i%2 ? c2 : c1}" stroke="none"/>`;
+  g += `<rect x="${x}" y="${y}" width="${w}" height="46" fill="none"/>`;
+  for (let i = 0; i < n; i++) g += `<path d="M${x + i*sw} ${y+46} a${sw/2} ${sw/2.6} 0 0 0 ${sw} 0 Z" fill="${i%2 ? c2 : c1}"/>`;
+  return g;
+}
+
+function shop(o){
+  const x=o.x, w=o.w, h=o.h, B=860, T=B-h, M=B-Math.round(h*0.44);
+  let g = "";
+  g += `<rect x="${x}" y="${T+44}" width="${w}" height="${M-T-44}" fill="${o.wall}"/>`;
+  for (let yy = T+66; yy < M-70; yy += 22) g += `<line x1="${x+5}" y1="${yy}" x2="${x+w-5}" y2="${yy}" stroke="rgba(18,10,36,.16)" stroke-width="3"/>`;
+  const ns = o.size || 60, sbW = Math.min(w - 70, o.name.length * ns * 0.64 + 70), sbH = ns + (o.sub ? 62 : 38);
+  const sbX = x + (w - sbW)/2, sbY = T + 66;
+  g += `<rect x="${sbX}" y="${sbY}" width="${sbW}" height="${sbH}" rx="18" fill="#150d33"/>`;
+  g += `<text class="neon ${o.fl||"f1"}" x="${x+w/2}" y="${sbY + ns + 6}" text-anchor="middle" font-family="Fredoka, sans-serif" font-weight="700" font-size="${ns}" fill="${o.nc}" stroke="none" filter="url(#glow)">${o.name}</text>`;
+  if (o.sub) g += `<text x="${x+w/2}" y="${sbY + ns + 46}" text-anchor="middle" font-family="Fredoka, sans-serif" font-weight="600" font-size="28" letter-spacing="3" fill="${o.sc||"#fff6e0"}" stroke="none">${o.sub}</text>`;
+  const wy = sbY + sbH + 22, wh = M - 84 - wy;
+  if (wh > 50) {
+    const n = Math.max(2, Math.floor(w / 200));
+    for (let i = 0; i < n; i++) {
+      const cx = x + (i + 0.5) * w / n;
+      g += `<rect x="${cx-40}" y="${wy}" width="80" height="${wh}" rx="8" fill="url(#win)"/><line x1="${cx-40}" y1="${wy+wh/2}" x2="${cx+40}" y2="${wy+wh/2}" stroke-width="4"/>`;
+      if (i % 2 === 0) g += `<circle cx="${cx+8}" cy="${wy+wh/2+22}" r="13" fill="rgba(18,10,36,.45)" stroke="none"/>`;
+    }
+  }
+  g += `<rect x="${x+6}" y="${M-76}" width="${w-12}" height="60" fill="${o.trim}"/><rect x="${x+6}" y="${M-76}" width="${w-12}" height="60" fill="url(#lattice)"/>`;
+  g += `<rect x="${x+6}" y="${M-84}" width="${w-12}" height="12" rx="4" fill="${o.trim}"/>`;
+  g += `<rect x="${x+2}" y="${T+44}" width="16" height="${M-T-44}" fill="${o.trim}"/><rect x="${x+w-18}" y="${T+44}" width="16" height="${M-T-44}" fill="${o.trim}"/>`;
+  g += `<path d="M${x-28} ${T+50} L${x+22} ${T} L${x+w-22} ${T} L${x+w+28} ${T+50} Z" fill="${o.roof}"/>`;
+  for (let xx = x + 34; xx < x + w - 24; xx += 20) g += `<line x1="${xx}" y1="${T+6}" x2="${xx + (xx - (x + w/2)) * 0.06}" y2="${T+44}" stroke="rgba(18,10,36,.28)" stroke-width="3"/>`;
+  g += awning(x - 14, M - 16, w + 28, o.aw[0], o.aw[1]);
+  g += `<rect x="${x}" y="${M+34}" width="${w}" height="${B-M-34}" fill="${o.wall2 || o.wall}"/>`;
+  const gy = M + 58, gh = B - gy - 26;
+  const d = o.door;
+  const spans = d ? [[x+24, d.x-18], [d.x+d.w+18, x+w-24]] : [[x+24, x+w-24]];
+  spans.forEach(sp => {
+    const sw = sp[1] - sp[0]; if (sw < 90) return;
+    const n = Math.max(1, Math.round(sw / 240)), ww = (sw - (n-1)*20) / n;
+    for (let i = 0; i < n; i++) {
+      const wx = sp[0] + i*(ww+20);
+      g += `<rect x="${wx}" y="${gy}" width="${ww}" height="${gh}" rx="10" fill="url(#shopwin)"/>`;
+      g += `<circle cx="${wx+ww*0.3}" cy="${gy+gh-34}" r="18" fill="rgba(18,10,36,.4)" stroke="none"/><circle cx="${wx+ww*0.62}" cy="${gy+gh-30}" r="16" fill="rgba(18,10,36,.4)" stroke="none"/>`;
+    }
+  });
+  if (d) {
+    g += `<rect x="${d.x}" y="${gy-14}" width="${d.w}" height="${B-gy+14}" rx="10" fill="${d.fill || "#2a0f3a"}"/>`;
+    g += `<rect x="${d.x+12}" y="${gy-2}" width="${d.w-24}" height="10" rx="5" fill="${o.nc}" stroke="none" filter="url(#glow)" class="neon f2"/>`;
+  }
+  return `<g>${g}</g>`;
+}
+
+function palm(x, base, h, lean){
+  const tx = x + lean, ty = base - h;
+  let g = `<path d="M${x} ${base} Q${x + lean*0.2} ${base - h*0.5} ${tx} ${ty}" stroke="${INK}" stroke-width="40" fill="none"/>`;
+  g += `<path d="M${x} ${base} Q${x + lean*0.2} ${base - h*0.5} ${tx} ${ty}" stroke="#9a6440" stroke-width="28" fill="none"/>`;
+  for (let i = 1; i < 9; i++) { const t = i/9, px = (1-t)*(1-t)*x + 2*(1-t)*t*(x+lean*0.2) + t*t*tx, py = (1-t)*(1-t)*base + 2*(1-t)*t*(base-h*0.5) + t*t*ty;
+    g += `<path d="M${px-13} ${py} Q${px} ${py+7} ${px+13} ${py}" stroke="#6b4026" stroke-width="4" fill="none"/>`; }
+  [-165,-128,-92,-55,-15,20,195].forEach((a, i) => { g += `<ellipse cx="${tx+92}" cy="${ty}" rx="100" ry="24" fill="${i%2 ? "#2fbf71" : "#25a862"}" transform="rotate(${a} ${tx} ${ty})"/>`; });
+  g += `<circle cx="${tx-12}" cy="${ty+14}" r="14" fill="#7a4a2a"/><circle cx="${tx+12}" cy="${ty+16}" r="14" fill="#7a4a2a"/>`;
+  return g;
+}
+
+function car(x, y, color, taxi){
+  let g = `<rect x="${x}" y="${y-92}" width="280" height="62" rx="24" fill="${color}"/>`;
+  g += `<path d="M${x+62} ${y-90} L${x+94} ${y-142} L${x+196} ${y-142} L${x+228} ${y-90} Z" fill="${color}"/>`;
+  g += `<path d="M${x+78} ${y-96} L${x+102} ${y-132} L${x+142} ${y-132} L${x+142} ${y-96} Z" fill="#bfe9ff"/><path d="M${x+154} ${y-96} L${x+154} ${y-132} L${x+190} ${y-132} L${x+212} ${y-96} Z" fill="#bfe9ff"/>`;
+  if (taxi) { g += `<rect x="${x+116}" y="${y-172}" width="64" height="28" rx="7" fill="#fff6e0"/><text x="${x+148}" y="${y-151}" text-anchor="middle" font-family="Fredoka, sans-serif" font-weight="700" font-size="20" fill="${INK}" stroke="none">TAXI</text>`;
+    for (let i = 0; i < 12; i++) g += `<rect x="${x+20+i*20}" y="${y-64}" width="10" height="10" fill="${i%2 ? INK : "#fff6e0"}" stroke="none"/>`; }
+  g += `<circle cx="${x+270}" cy="${y-72}" r="9" fill="#fff4a8"/><circle cx="${x+10}" cy="${y-72}" r="7" fill="#ff5a5a"/>`;
+  g += `<circle cx="${x+66}" cy="${y-28}" r="28" fill="${INK}"/><circle cx="${x+66}" cy="${y-28}" r="11" fill="#aab"/><circle cx="${x+214}" cy="${y-28}" r="28" fill="${INK}"/><circle cx="${x+214}" cy="${y-28}" r="11" fill="#aab"/>`;
+  return g;
+}
+
+function lights(x1, y1, x2, y2, sag, n){
+  const cx = (x1+x2)/2, cy = (y1+y2)/2 + sag*2;
+  let g = `<path d="M${x1} ${y1} Q${cx} ${cy} ${x2} ${y2}" fill="none" stroke="#0a0f2e" stroke-width="4"/>`;
+  const cols = ["#ffd23f","#ff4fa3","#2ee6d6","#ff8a3d"];
+  for (let i = 1; i < n; i++) { const t = i/n, px = (1-t)*(1-t)*x1 + 2*(1-t)*t*cx + t*t*x2, py = (1-t)*(1-t)*y1 + 2*(1-t)*t*cy + t*t*y2;
+    g += `<circle class="tw d${i%4}" cx="${px}" cy="${py+8}" r="8" fill="${cols[i%4]}" stroke-width="3"/>`; }
+  return g;
+}
+
+function lantern(x, y){
+  return `<g class="sway" style="animation-delay:${(x%7)/5}s"><line x1="${x}" y1="${y-26}" x2="${x}" y2="${y}" stroke-width="3"/><rect x="${x-18}" y="${y}" width="36" height="10" rx="3" fill="#ffcf3a"/><ellipse cx="${x}" cy="${y+42}" rx="30" ry="34" fill="#e8384f"/><path d="M${x} ${y+8} Q${x-16} ${y+42} ${x} ${y+76} M${x} ${y+8} Q${x+16} ${y+42} ${x} ${y+76}" fill="none" stroke="#a51d33" stroke-width="3"/><rect x="${x-18}" y="${y+72}" width="36" height="10" rx="3" fill="#ffcf3a"/><line x1="${x}" y1="${y+82}" x2="${x}" y2="${y+104}" stroke="#ffcf3a" stroke-width="4"/></g>`;
+}
+
+function sceneSVG(){
+  const R = rng(42);
+  let s = `<svg xmlns="http://www.w3.org/2000/svg" width="3840" height="1080" viewBox="0 0 3840 1080" font-family="Fredoka, sans-serif">`;
+  s += `<defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#070d33"/><stop offset=".6" stop-color="#14206a"/><stop offset="1" stop-color="#2b2a86"/></linearGradient>
+    <linearGradient id="win" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe9a8"/><stop offset="1" stop-color="#ffb347"/></linearGradient>
+    <linearGradient id="shopwin" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffd58a"/><stop offset="1" stop-color="#ff9a5c"/></linearGradient>
+    <linearGradient id="spill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff4fa3" stop-opacity=".55"/><stop offset="1" stop-color="#ff4fa3" stop-opacity="0"/></linearGradient>
+    <linearGradient id="beamg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2ee6d6" stop-opacity=".9"/><stop offset="1" stop-color="#2ee6d6" stop-opacity="0"/></linearGradient>
+    <pattern id="lattice" width="22" height="22" patternUnits="userSpaceOnUse"><path d="M0 0L22 22M22 0L0 22" stroke="rgba(18,10,36,.55)" stroke-width="3"/></pattern>
+    <pattern id="checker" width="14" height="14" patternUnits="userSpaceOnUse"><rect width="14" height="14" fill="#fff"/><rect width="7" height="7" fill="#1b2a5c"/><rect x="7" y="7" width="7" height="7" fill="#1b2a5c"/></pattern>
+    <filter id="glow" x="-20%" y="-60%" width="140%" height="220%"><feGaussianBlur stdDeviation="5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>`;
+  s += `<rect width="3840" height="1080" fill="url(#sky)"/>`;
+  for (let i = 0; i < 170; i++) s += `<circle ${i%5===0 ? 'class="tw d'+(i%4)+'"' : ""} cx="${(R()*3840).toFixed(0)}" cy="${(R()*460).toFixed(0)}" r="${(1.2 + R()*2.4).toFixed(1)}" fill="#fff" opacity="${(0.5 + R()*0.5).toFixed(2)}"/>`;
+  s += `<circle cx="3460" cy="170" r="66" fill="#fff3c4"/><circle cx="3438" cy="150" r="12" fill="#f0dd9a"/><circle cx="3482" cy="194" r="9" fill="#f0dd9a"/>`;
+  // far skyline
+  let fx = -40;
+  while (fx < 3880) { const w = 120 + R()*170, h = 330 + R()*330; s += `<rect x="${fx.toFixed(0)}" y="${(860-h).toFixed(0)}" width="${w.toFixed(0)}" height="${h.toFixed(0)}" fill="#19226a"/>`;
+    for (let wy = 860 - h + 24; wy < 820; wy += 38) for (let wx = fx + 16; wx < fx + w - 22; wx += 34) if (R() < 0.3) s += `<rect x="${wx.toFixed(0)}" y="${wy.toFixed(0)}" width="14" height="18" fill="#ffd97a" opacity=".55"/>`;
+    fx += w + 8; }
+  s += `<g stroke="${INK}" stroke-width="5" stroke-linejoin="round" stroke-linecap="round">`;
+  // mall back buildings
+  [[1440,260,470,"#3b2f7d"],[1700,300,540,"#45368f"],[2000,300,500,"#3b2f7d"],[2300,260,460,"#45368f"]].forEach(b => {
+    s += `<rect x="${b[0]}" y="${860-b[2]}" width="${b[1]}" height="${b[2]}" fill="${b[3]}"/>`;
+    for (let wy = 860 - b[2] + 30; wy < 800; wy += 70) for (let wx = b[0] + 26; wx < b[0] + b[1] - 50; wx += 64) s += `<rect x="${wx}" y="${wy}" width="36" height="40" rx="5" fill="${R() < 0.6 ? "#ffcf7a" : "#2a2166"}" stroke-width="3"/>`;
+  });
+  s += `<text class="neon f3" x="1570" y="540" text-anchor="middle" font-size="40" font-weight="700" fill="#2ee6d6" stroke="none" filter="url(#glow)">KARAOKE</text>`;
+  s += `<text class="neon f1" x="2430" y="560" text-anchor="middle" font-size="44" font-weight="700" fill="#ff4fa3" stroke="none" filter="url(#glow)">BAO</text>`;
+  // arch
+  s += `<rect x="1700" y="290" width="18" height="120" fill="#2a2350"/><rect x="2282" y="290" width="18" height="120" fill="#2a2350"/>`;
+  s += `<rect x="1880" y="340" width="34" height="70" fill="#d6384b"/><rect x="2086" y="340" width="34" height="70" fill="#d6384b"/>`;
+  s += `<rect x="1820" y="334" width="360" height="34" fill="#d6384b"/><path d="M1778 340 Q1808 334 1830 302 L2170 302 Q2192 334 2222 340 L2204 350 L1796 350 Z" fill="#2f9e6e"/>`;
+  [1600, 2400].forEach(cx => { s += `<rect x="${cx-36}" y="470" width="72" height="360" fill="#d6384b"/><rect x="${cx-36}" y="520" width="72" height="16" fill="#ffcf3a"/><rect x="${cx-50}" y="818" width="100" height="42" rx="6" fill="#8b2233"/>`; });
+  s += `<rect x="1540" y="440" width="920" height="52" fill="#d6384b"/><rect x="1540" y="486" width="920" height="10" fill="#ffcf3a"/>`;
+  s += `<path d="M1496 448 Q1540 442 1562 404 L2438 404 Q2460 442 2504 448 L2484 460 L1516 460 Z" fill="#2f9e6e"/>`;
+  for (let xx = 1580; xx < 2430; xx += 30) s += `<line x1="${xx}" y1="410" x2="${xx}" y2="440" stroke="rgba(18,10,36,.35)" stroke-width="3"/>`;
+  s += `<rect x="1840" y="496" width="320" height="52" rx="8" fill="#ffcf3a"/><text x="2000" y="532" text-anchor="middle" font-size="27" font-weight="700" fill="${INK}" stroke="none" letter-spacing="2">FORTITUDE VALLEY</text>`;
+  [1680,1770,2230,2320].forEach(x => s += lantern(x, 496));
+  s += `<path d="M1636 580 Q2000 640 2364 580" fill="none" stroke="#0a0f2e" stroke-width="4"/>`;
+  [1760,1880,2000,2120,2240].forEach((x,i) => s += lantern(x, 596 + (i===2?14:(i%2?8:0))));
+  // big sign
+  s += `<rect x="1540" y="140" width="920" height="150" rx="28" fill="#150d33" stroke-width="8"/>`;
+  s += `<rect class="neon f2" x="1560" y="158" width="880" height="114" rx="18" fill="none" stroke="#ff4fa3" stroke-width="5" filter="url(#glow)"/>`;
+  s += `<text class="neon f1" x="2000" y="240" text-anchor="middle" font-size="68" font-weight="700" letter-spacing="3" fill="#ffd23f" stroke="none" filter="url(#glow)">SAFE NIGHT PRECINCT</text>`;
+  for (let xx = 1570; xx <= 2430; xx += 43) { s += `<circle class="tw d${(xx/43|0)%2*2}" cx="${xx}" cy="140" r="7" fill="#fff4a8" stroke-width="3"/><circle class="tw d${((xx/43|0)+1)%2*2}" cx="${xx}" cy="290" r="7" fill="#fff4a8" stroke-width="3"/>`; }
+  // mall stage + spotlights
+  s += `<path d="M1730 700 L1920 792 L2080 792 Z" fill="#ffd23f" opacity=".16" stroke="none"/><path d="M2270 700 L2080 792 L1920 792 Z" fill="#2ee6d6" opacity=".16" stroke="none"/>`;
+  s += `<line x1="1726" y1="860" x2="1726" y2="712"/><rect x="1708" y="686" width="40" height="34" rx="6" fill="#2a2350" transform="rotate(30 1728 703)"/>`;
+  s += `<line x1="2274" y1="860" x2="2274" y2="712"/><rect x="2254" y="686" width="40" height="34" rx="6" fill="#2a2350" transform="rotate(-30 2274 703)"/>`;
+  s += `<rect x="1760" y="772" width="480" height="24" rx="6" fill="#8a6cf0"/><rect x="1760" y="796" width="480" height="64" fill="#2a1d66"/>`;
+  for (let xx = 1776; xx < 2230; xx += 48) s += `<rect x="${xx}" y="808" width="24" height="40" rx="6" fill="${(xx/48|0)%2 ? "#ff4fa3" : "#2ee6d6"}" stroke-width="3"/>`;
+  // shops
+  s += shop({x:-20, w:400, h:520, wall:"#6fc3b8", wall2:"#4f9a93", trim:"#fff6e0", roof:"#c9d3e6", name:"VINYL CAVE", nc:"#ff4fa3", size:52, aw:["#ffd23f","#fff6e0"], fl:"f3"});
+  s += shop({x:380, w:860, h:600, wall:"#ff9a6b", wall2:"#d9704a", trim:"#fff6e0", roof:"#b8c2dc", name:"CLUB CASSOWARY", nc:"#2ee6d6", size:66, sub:"LATE NIGHT · DJS · DANCING", sc:"#ffd23f", aw:["#ff4fa3","#fff6e0"], door:{x:730, w:150}, fl:"f1"});
+  s += shop({x:2560, w:520, h:540, wall:"#f06a5c", wall2:"#c24a44", trim:"#ffe9a8", roof:"#c9d3e6", name:"LUCKY LANTERN", nc:"#ffd23f", size:54, sub:"DUMPLINGS TIL 3AM", sc:"#fff6e0", aw:["#2ee6d6","#fff6e0"], fl:"f2"});
+  s += shop({x:3080, w:560, h:620, wall:"#9b7bff", wall2:"#7658d9", trim:"#fff6e0", roof:"#b8c2dc", name:"MANGO MOON", nc:"#ff8a3d", size:64, sub:"ROOFTOP BAR", sc:"#2ee6d6", aw:["#ffd23f","#ff8a3d"], door:{x:3300, w:130, fill:"#1d0c33"}, fl:"f3"});
+  s += shop({x:3640, w:260, h:480, wall:"#ffd166", wall2:"#e0a93e", trim:"#fff6e0", roof:"#c9d3e6", name:"NOODLE", nc:"#ff4fa3", size:44, aw:["#ff4fa3","#fff6e0"], fl:"f1"});
+  // fairy lights
+  s += lights(380, 560, 1240, 560, 16, 18) + lights(1240, 330, 1560, 440, 26, 8) + lights(2440, 440, 2560, 330, 20, 4) + lights(2560, 600, 3080, 600, 16, 11) + lights(3080, 560, 3640, 560, 18, 12);
+  // power line + possum
+  s += `<path d="M-20 92 Q650 172 1320 104" fill="none" stroke="#0a0f2e" stroke-width="5"/>`;
+  s += `<g transform="translate(330 132)"><path class="tail" d="M28 -18 Q64 10 44 52 Q34 74 54 80" fill="none" stroke="${INK}" stroke-width="20"/><path class="tail" d="M28 -18 Q64 10 44 52 Q34 74 54 80" fill="none" stroke="#6e6989" stroke-width="11"/>`;
+  s += `<ellipse cx="0" cy="-34" rx="36" ry="32" fill="#9a96b4"/><ellipse cx="0" cy="-26" rx="20" ry="20" fill="#d9d6ea" stroke="none"/><circle cx="0" cy="-74" r="28" fill="#9a96b4"/>`;
+  s += `<ellipse cx="-22" cy="-98" rx="11" ry="14" fill="#9a96b4"/><ellipse cx="22" cy="-98" rx="11" ry="14" fill="#9a96b4"/><ellipse cx="-22" cy="-97" rx="5" ry="7" fill="#ff9ec0" stroke="none"/><ellipse cx="22" cy="-97" rx="5" ry="7" fill="#ff9ec0" stroke="none"/>`;
+  s += `<circle cx="-11" cy="-76" r="9" fill="${INK}" stroke="none"/><circle cx="11" cy="-76" r="9" fill="${INK}" stroke="none"/><circle cx="-8" cy="-79" r="3" fill="#fff" stroke="none"/><circle cx="14" cy="-79" r="3" fill="#fff" stroke="none"/><ellipse cx="0" cy="-62" rx="5" ry="4" fill="#ff7aa8" stroke="none"/>`;
+  s += `<ellipse cx="-18" cy="-4" rx="10" ry="7" fill="#9a96b4"/><ellipse cx="18" cy="-4" rx="10" ry="7" fill="#9a96b4"/></g>`;
+  // palms
+  s += palm(1330, 900, 470, 40) + palm(2505, 900, 420, -30) + palm(3770, 900, 450, -40);
+  // footpath & road
+  s += `<rect x="-10" y="860" width="3860" height="100" fill="#4b3f86"/>`;
+  for (let xx = 0; xx < 3840; xx += 80) s += `<line x1="${xx}" y1="862" x2="${xx-18}" y2="956" stroke="rgba(18,10,36,.28)" stroke-width="3"/>`;
+  s += `<rect x="-10" y="954" width="3860" height="18" fill="#8f86c9"/><rect x="-10" y="972" width="3860" height="120" fill="#1d1840"/>`;
+  for (let xx = 20; xx < 3840; xx += 130) s += `<rect x="${xx}" y="1032" width="70" height="10" rx="4" fill="#ffd23f" stroke="none"/>`;
+  s += `<path d="M740 860 L870 860 L960 960 L650 960 Z" fill="url(#spill)" stroke="none"/>`;
+  // rope + stanchions
+  s += `<path d="M120 846 Q210 880 300 846 Q390 880 480 846" fill="none" stroke="#c81d4a" stroke-width="10"/>`;
+  [120,300,480].forEach(x => s += `<rect x="${x-6}" y="836" width="12" height="100" fill="#ffcf3a"/><circle cx="${x}" cy="834" r="11" fill="#ffcf3a"/><ellipse cx="${x}" cy="938" rx="24" ry="8" fill="#ffcf3a"/>`);
+  // queue
+  s += person({x:150, y:912, s:.92, body:"#9b6bff", skin:"#8d5a3b", hs:"curly", hair:"#1a0f08", mood:"grin", bob:true, delay:0});
+  s += person({x:245, y:912, s:.92, body:"#ffd23f", skin:"#f2c29b", hs:"long", hair:"#c9652b", mood:"smile", bob:true, delay:.35});
+  s += person({x:338, y:912, s:.92, body:"#2ee6d6", skin:"#c68a5e", hs:"bun", hair:"#2b1a12", mood:"o", arms:"wave", bob:true, delay:.7});
+  s += person({x:428, y:912, s:.92, body:"#ff8a3d", skin:"#ffdcc0", hs:"spiky", hair:"#ffd23f", mood:"grin", bob:true, delay:.15});
+  s += person({x:512, y:914, s:.92, body:"#ff4fa3", skin:"#5e3a22", hs:"short", hair:"#120a24", mood:"smile", bob:true, delay:.5});
+  // bouncers + scanner
+  s += person({x:604, y:922, s:1.1, vest:true, skin:"#b77b52", hs:"none", mood:"flat", arms:"hold", pants:"#15122a"});
+  s += `<rect x="640" y="786" width="64" height="136" rx="8" fill="#2a2350"/><rect x="646" y="836" width="52" height="30" rx="5" fill="#ffd23f"/><text x="672" y="858" text-anchor="middle" font-size="18" font-weight="700" fill="${INK}" stroke="none">ID</text>`;
+  s += `<g transform="rotate(-12 672 758)"><rect x="612" y="722" width="120" height="76" rx="12" fill="#0b1030"/><rect x="622" y="732" width="100" height="56" rx="6" fill="#2ee6d6"/><path d="M652 760 l12 12 24 -24" fill="none" stroke="${INK}" stroke-width="7"/></g>`;
+  s += `<rect class="beam" x="612" y="700" width="120" height="8" rx="4" fill="url(#beamg)" stroke="none"/>`;
+  s += person({x:960, y:924, s:1.12, vest:true, skin:"#f2c29b", hs:"none", beanie:"#242038", mood:"smile", arms:"cross", pants:"#15122a"});
+  // selfie couple
+  s += person({x:1470, y:926, s:.94, body:"#2ee6d6", skin:"#ffdcc0", hs:"long", hair:"#5a2d82", mood:"grin", arms:"selfie"});
+  s += person({x:1400, y:926, s:.94, body:"#ffd23f", skin:"#8d5a3b", hs:"curly", hair:"#1a0f08", mood:"grin", arms:"down"});
+  // kebab drop + ibis
+  s += person({x:2440, y:928, s:.96, body:"#ff8a3d", skin:"#c68a5e", hs:"spiky", hair:"#2b1a12", mood:"o", arms:"up"});
+  s += `<g class="fall"><path d="M2520 690 L2574 676 L2566 752 Z" fill="#f2c27a"/><path d="M2522 694 Q2548 678 2572 680" fill="none" stroke="#3bbf5a" stroke-width="8"/><circle cx="2548" cy="690" r="6" fill="#e8384f"/></g>`;
+  s += `<path d="M2508 700 l-18 -10 M2512 720 l-22 0" stroke="#fff6e0" stroke-width="4"/>`;
+  s += `<g transform="translate(2610 940)"><line x1="-8" y1="-40" x2="-12" y2="0" stroke-width="5"/><line x1="10" y1="-40" x2="10" y2="0" stroke-width="5"/><ellipse cx="4" cy="-66" rx="44" ry="30" fill="#fff"/><path d="M40 -76 Q44 -112 20 -128" fill="none" stroke-width="12"/><path d="M40 -76 Q44 -112 20 -128" fill="none" stroke="#fff" stroke-width="4"/><circle cx="16" cy="-132" r="15" fill="${INK}"/><path d="M4 -130 Q-30 -124 -44 -98" fill="none" stroke-width="6"/><circle cx="12" cy="-136" r="3" fill="#fff" stroke="none"/><path d="M30 -60 L56 -46 L34 -44 Z" fill="${INK}"/></g>`;
+  // police
+  s += person({x:2740, y:928, s:1.02, body:"#6ea8ff", pants:"#1b2a5c", skin:"#f2c29b", hs:"short", hair:"#6b3e1f", cap:true, police:true, mood:"smile", arms:"wave"});
+  s += person({x:2840, y:928, s:1.02, body:"#6ea8ff", pants:"#1b2a5c", skin:"#6b4226", hs:"short", hair:"#120a24", cap:true, police:true, mood:"smile", arms:"down"});
+  // dancer + hailer
+  s += person({x:3230, y:926, s:.94, body:"#ff4fa3", skin:"#ffdcc0", hs:"bun", hair:"#ffd23f", mood:"grin", arms:"up", dance:true, delay:.2});
+  s += person({x:3560, y:930, s:.94, body:"#2ee6d6", skin:"#a86b43", hs:"short", hair:"#2b1a12", mood:"o", arms:"wave"});
+  // cars
+  s += car(1080, 1070, "#2ee6d6", false) + car(2930, 1070, "#ffcc1a", true) + car(3330, 1070, "#ffcc1a", true);
+  s += `</g></svg>`;
+  return s;
+}
+
+/* ================= VIEW / PAN ================= */
+const VIEWS = {
+  intro: {cx:1650, cy:540, z:1,    sx:960, sy:540},
+  s1:    {cx:720,  cy:700, z:1.28, sx:380, sy:600},
+  s2:    {cx:2000, cy:700, z:1.05, sx:420, sy:640},
+  s3:    {cx:3150, cy:600, z:1.1,  sx:960, sy:540},
+  end:   {cx:1990, cy:540, z:1,    sx:960, sy:540}
+};
+function setView(key){
+  const v = VIEWS[key], z = v.z;
+  let tx = v.sx - v.cx * z, ty = v.sy - v.cy * z;
+  tx = Math.min(0, Math.max(1920 - 3840 * z, tx));
+  ty = Math.min(0, Math.max(1080 - 1080 * z, ty));
+  $("#world").style.transform = `translate(${tx}px, ${ty}px) scale(${z})`;
+  $("#shade").classList.toggle("on", key === "s3");
+}
+
+/* ================= STATE ================= */
+let S;
+function freshState(){
+  return {
+    stage: "intro", score: 0, paused: false,
+    s1: { place:{}, initial:{}, checked:false, correct:0, selected:null },
+    s2: { spun:[], current:null, qi:0, answered:false, rotation:0, spinning:false, answers:[], order:[] },
+    s3: { strat:{}, surprise:"", hints:{} }
+  };
+}
+
+/* ================= FIT TO SCREEN ================= */
+function fit(){
+  const s = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
+  stageEl.style.setProperty("--s", s);
+  S && (S.scale = s);
+}
+function toStage(clientX, clientY){
+  const r = stageEl.getBoundingClientRect(), s = r.width / 1920;
+  return { x: (clientX - r.left) / s, y: (clientY - r.top) / s, s };
+}
+
+/* ================= TIMER ================= */
+const timer = { remaining:0, running:false, last:0, total:0, active:false };
+function startTimer(sec){ timer.total = sec*1000; timer.remaining = sec*1000; timer.running = true; timer.active = true; timer.last = performance.now(); renderTimer(); }
+function stopTimer(){ timer.running = false; timer.active = false; renderTimer(); }
+setInterval(() => {
+  const now = performance.now();
+  if (timer.running && !S.paused) {
+    timer.remaining -= now - timer.last;
+    if (timer.remaining <= 0) { timer.remaining = 0; timer.running = false; renderTimer(); onTimesUp(); }
+  }
+  timer.last = now;
+  renderTimer();
+}, 200);
+function fmt(ms){ const t = Math.ceil(ms/1000), m = Math.floor(t/60), s = t % 60; return m + ":" + String(s).padStart(2, "0"); }
+function renderTimer(){
+  const chip = $("#timerChip"), val = $("#timerVal"), lbl = $("#timerLbl");
+  if (!timer.active) { val.textContent = S && S.stage === "intro" ? "~0:" + String(C.timings.intro).padStart(2,"0") : "–:––"; lbl.textContent = S && S.stage === "intro" ? "Briefing" : "Time"; chip.className = "chip off"; return; }
+  val.textContent = fmt(timer.remaining);
+  lbl.textContent = S.paused ? "Paused" : (S.stage === "s3" ? "Guide time" : "Time left");
+  chip.className = "chip" + (S.paused ? " paused" : "") + (!S.paused && timer.remaining <= 10000 ? " low" : "");
+}
+function onTimesUp(){
+  Sound.timesUp();
+  const soft = S.stage === "s3";
+  const box = $("#timesUp");
+  const nextLabel = { s1: S.s1.checked ? "Continue to Stage 2" : "Reveal the answers", s2: "Continue to Stage 3", s3: "Finish the audit" }[S.stage] || "Continue";
+  box.innerHTML = `<div class="dialog sticker" role="alertdialog" aria-labelledby="tuH"><h2 id="tuH">Time's up!</h2>
+    <p>${soft ? "This one's only a guide. Take a little longer, or wrap up the report." : "Pens down, auditors. Ready to move on?"}</p>
+    <div class="row"><button class="btn" id="tuGo" type="button">${nextLabel} ${I.arrow}</button>
+    <button class="btn ghost" id="tuMore" type="button">Add ${C.timings.extendBy} seconds</button></div>
+    <p style="font-size:22px;color:var(--muted)">Press <span class="key">Space</span> to continue</p></div>`;
+  box.hidden = false;
+  $("#tuGo").onclick = () => { hideTimesUp(); advance(); };
+  $("#tuMore").onclick = () => { hideTimesUp(); timer.remaining += C.timings.extendBy * 1000; timer.running = true; timer.last = performance.now(); };
+  setTimeout(() => { const b = $("#tuGo"); b && b.focus(); }, 30);
+}
+function hideTimesUp(){ $("#timesUp").hidden = true; $("#timesUp").innerHTML = ""; }
+
+/* ================= TOP BAR ================= */
+function renderTopbar(){
+  const order = ["intro","s1","s2","s3"];
+  const idx = S.stage === "end" ? 4 : order.indexOf(S.stage);
+  const labels = { intro:"Brief", s1:"1 · Log", s2:"2 · Threats", s3:"3 · Report" };
+  $("#steps").innerHTML = order.map((k,i) => {
+    const cls = i === idx ? "on" : (i < idx ? "done" : "");
+    return `<span class="step ${cls}" ${i === idx ? 'aria-current="step"' : ""}>${i < idx ? I.tick : ""}${labels[k]}</span>`;
+  }).join("");
+  $("#scoreVal").textContent = S.score;
+  const p = $("#pauseBtn"); p.innerHTML = (S.paused ? I.play : I.pause) + `<span>${S.paused ? "Resume" : "Pause"}</span>`; p.setAttribute("aria-pressed", S.paused);
+  $("#skipBtn").innerHTML = I.skip + "<span>Skip</span>"; $("#skipBtn").disabled = S.stage === "end";
+  const m = $("#muteBtn"); m.innerHTML = (Sound.muted ? I.soundOff : I.soundOn) + `<span>${Sound.muted ? "Sound off" : "Sound on"}</span>`; m.setAttribute("aria-pressed", !Sound.muted);
+  $("#restartBtn").innerHTML = I.restart + "<span>Restart</span>";
+  renderTimer();
+}
+function addScore(n){
+  if (!n) return;
+  S.score += n; $("#scoreVal").textContent = S.score;
+  const p = document.createElement("span"); p.className = "plus"; p.textContent = "+" + n;
+  $("#scoreChip").appendChild(p); setTimeout(() => p.remove(), 1300);
+}
+function announce(t){ $("#live").textContent = t; }
+let toastT;
+function toast(t){ const el = $("#toast"); el.textContent = t; el.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => el.hidden = true, 2600); }
+
+/* ================= FLOW ================= */
+function goStage(key){
+  S.stage = key; hideTimesUp(); closeConfirm();
+  $$(".screen").forEach(el => el.hidden = el.dataset.screen !== key);
+  setView(key);
+  ({ intro:buildIntro, s1:buildS1, s2:buildS2, s3:buildS3, end:buildEnd })[key]();
+  const t = { s1:C.timings.stage1, s2:C.timings.stage2, s3:C.timings.stage3 }[key];
+  if (t) startTimer(t); else stopTimer();
+  if (key !== "end") stopConfetti();
+  renderTopbar();
+  announce(key === "end" ? "Audit complete" : (C.stageNames[key] || ""));
+}
+function advance(){
+  if (S.stage === "intro") return goStage("s1");
+  if (S.stage === "s1") { if (!S.s1.checked) return checkS1(); return goStage("s2"); }
+  if (S.stage === "s2") { if (S.s2.spinning) return; return goStage("s3"); }
+  if (S.stage === "s3") return goStage("end");
+}
+function restart(){ closeConfirm(); stopConfetti(); S = freshState(); goStage("intro"); }
+
+/* ================= INTRO ================= */
+function buildIntro(){
+  $("#scr-intro").innerHTML = `<div class="intro-card sticker">
+    <span class="eyebrow">${esc(C.location)}</span>
+    <h1>Scan <span class="amp">&amp;</span> Scam</h1>
+    <p class="scenario">${C.scenarioText}</p>
+    <div class="plan"><div><b>1</b> ${esc(C.stageNames.s1)} · ${fmt(C.timings.stage1*1000)}</div><div><b>2</b> ${esc(C.stageNames.s2)} · ${fmt(C.timings.stage2*1000)}</div><div><b>3</b> ${esc(C.stageNames.s3)} · ${fmt(C.timings.stage3*1000)}</div></div>
+    <div class="intro-row"><button class="btn pink" id="startBtn" type="button">Start audit ${I.arrow}</button>
+    <div class="keys"><span><span class="key">Space</span> next</span><span><span class="key">P</span> pause</span><span><span class="key">R</span> restart</span><span><span class="key">M</span> sound</span></div></div>
+  </div>`;
+  $("#startBtn").onclick = () => goStage("s1");
+}
+
+/* ================= STAGE 1 ================= */
+function shuffle(a){ a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+function buildS1(){
+  const st = S.s1;
+  C.stage1.cards.forEach(c => st.place[c.id] = "pool");
+  const cards = shuffle(C.stage1.cards).map(c => `<button class="card" type="button" data-id="${c.id}" aria-pressed="false"><span class="mark" aria-hidden="true"></span><span class="txt">${esc(c.text)}</span><span class="moved">moved</span><span class="visually-hidden sr"></span></button>`).join("");
+  $("#scr-s1").innerHTML = `<div class="s1-grid">
+    <div class="s1-left" id="s1Left"></div>
+    <div class="s1-panel sticker" id="s1Panel">
+      <div class="stage-title"><span class="num">Stage 1</span><h2>${esc(C.stageNames.s1)}</h2></div>
+      <p class="lead">${esc(C.stage1.instruction)}</p>
+      <div class="pool zone" data-zone="pool" id="pool" aria-label="Unsorted cards">${cards}</div>
+      <div class="bins">
+        ${["logged","not"].map(z => `<section class="bin zone" data-zone="${z}"><button class="bin-head" type="button" data-zone-btn="${z}"><span>${esc(C.stage1.bins[z])}</span><span class="count" data-count="${z}">0</span></button><div class="bin-body" data-body="${z}"></div></section>`).join("")}
+      </div>
+      <div class="s1-actions"><button class="btn pink" id="checkBtn" type="button">Check answers</button><span class="hint" id="s1Hint">+${C.points.card} points per correct card</span></div>
+    </div></div>`;
+  wireS1();
+}
+function zoneBody(z){ return z === "pool" ? $("#pool") : $(`[data-body="${z}"]`); }
+function cardEl(id){ return $(`#scr-s1 .card[data-id="${id}"]`); }
+function updateCounts(){ ["logged","not"].forEach(z => { const el = $(`[data-count="${z}"]`); if (el) el.textContent = Object.values(S.s1.place).filter(v => v === z).length; }); }
+function select(id){
+  const st = S.s1; if (st.checked) return;
+  st.selected = st.selected === id ? null : id;
+  $$("#scr-s1 .card").forEach(c => { const on = c.dataset.id === st.selected; c.classList.toggle("selected", on); c.setAttribute("aria-pressed", on); });
+  if (st.selected) { Sound.pop(); $("#s1Hint").textContent = "Now tap a bin to drop it in."; }
+  else $("#s1Hint").textContent = `+${C.points.card} points per correct card`;
+}
+function moveCard(id, zone, silent){
+  const st = S.s1; st.place[id] = zone;
+  const el = cardEl(id); zoneBody(zone).appendChild(el);
+  if (!silent) Sound.pop();
+  st.selected = null; $$("#scr-s1 .card").forEach(c => { c.classList.remove("selected"); c.setAttribute("aria-pressed", "false"); });
+  updateCounts();
+  if (!st.checked) $("#s1Hint").textContent = Object.values(st.place).includes("pool") ? `+${C.points.card} points per correct card` : "All sorted. Check your answers!";
+}
+let drag = null, justDragged = false;
+function wireS1(){
+  const scr = $("#scr-s1");
+  scr.addEventListener("click", e => {
+    if (S.s1.checked) return;
+    const card = e.target.closest(".card");
+    if (card) { if (justDragged) return; select(card.dataset.id); return; }
+    const zb = e.target.closest("[data-zone-btn]"), zone = zb ? zb.dataset.zoneBtn : (e.target.closest(".zone") && e.target.closest(".zone").dataset.zone);
+    if (zone && S.s1.selected) moveCard(S.s1.selected, zone);
+  });
+  $("#checkBtn").onclick = () => { if (S.s1.checked) goStage("s2"); else checkS1(); };
+  $$("#scr-s1 .card").forEach(card => {
+    card.addEventListener("pointerdown", e => {
+      if (S.s1.checked || (e.button && e.button !== 0)) return;
+      const p = toStage(e.clientX, e.clientY), r = card.getBoundingClientRect(), s = p.s;
+      drag = { id: card.dataset.id, el: card, sx: e.clientX, sy: e.clientY, ox: (e.clientX - r.left)/s, oy: (e.clientY - r.top)/s, moved: false, ghost: null, pid: e.pointerId, hover: null };
+      try { card.setPointerCapture(e.pointerId); } catch(err) {}
+    });
+    card.addEventListener("pointermove", e => {
+      if (!drag || drag.el !== card) return;
+      if (!drag.moved && Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) < 8) return;
+      if (!drag.moved) {
+        drag.moved = true;
+        const g = card.cloneNode(true); g.classList.add("ghost"); g.classList.remove("selected"); g.removeAttribute("id"); g.setAttribute("aria-hidden", "true");
+        stageEl.appendChild(g); drag.ghost = g; card.classList.add("dragging");
+      }
+      const p = toStage(e.clientX, e.clientY);
+      drag.ghost.style.left = (p.x - drag.ox) + "px"; drag.ghost.style.top = (p.y - drag.oy) + "px";
+      const hit = document.elementFromPoint(e.clientX, e.clientY), z = hit && hit.closest && hit.closest(".zone");
+      if (drag.hover !== z) { drag.hover && drag.hover.classList.remove("hover"); z && z.classList.add("hover"); drag.hover = z; }
+      e.preventDefault();
+    });
+    const end = e => {
+      if (!drag || drag.el !== card) return;
+      const d = drag; drag = null;
+      if (d.moved) {
+        d.ghost && d.ghost.remove(); card.classList.remove("dragging"); d.hover && d.hover.classList.remove("hover");
+        const zone = d.hover && d.hover.dataset.zone;
+        if (zone && e.type === "pointerup") moveCard(d.id, zone);
+        justDragged = true; setTimeout(() => justDragged = false, 80);
+      }
+    };
+    card.addEventListener("pointerup", end); card.addEventListener("pointercancel", end);
+  });
+}
+function checkS1(){
+  const st = S.s1; if (st.checked) return;
+  st.checked = true; st.selected = null;
+  $("#pool").classList.add("checked"); $("#s1Panel").classList.add("checked");
+  let correct = 0;
+  C.stage1.cards.forEach(c => {
+    const el = cardEl(c.id), want = c.logged ? "logged" : "not", ok = st.place[c.id] === want;
+    st.initial[c.id] = st.place[c.id];
+    el.classList.remove("selected"); el.setAttribute("aria-pressed","false");
+    el.classList.add(ok ? "is-right" : "is-wrong");
+    el.querySelector(".mark").innerHTML = ok ? I.tick : I.cross;
+    el.querySelector(".sr").textContent = ok ? " (correct)" : ` (incorrect, belongs in ${C.stage1.bins[want]})`;
+    if (ok) correct++;
+    else setTimeout(() => { moveCard(c.id, want, true); el.classList.add("was-moved"); }, 1100);
+  });
+  st.correct = correct;
+  correct ? Sound.good() : Sound.bad();
+  addScore(correct * C.points.card);
+  const btn = $("#checkBtn"); btn.innerHTML = `On to the Threat Wheel ${I.arrow}`; btn.classList.remove("pink");
+  $("#s1Hint").textContent = `${correct} of ${C.stage1.cards.length} correct`;
+  setTimeout(() => {
+    const icons = [I.search, I.bin, I.lock];
+    $("#s1Left").innerHTML = `<div class="note sticker" role="region" aria-label="Auditor's note"><span class="tape" aria-hidden="true"></span>
+      <h3>Auditor's note</h3><p class="tally">You sorted ${correct} of ${C.stage1.cards.length} correctly · +${correct * C.points.card} points</p>
+      <ul>${C.stage1.auditorNote.map((f,i) => `<li><span class="ico">${icons[i % 3]}</span><span>${esc(f)}</span></li>`).join("")}</ul></div>`;
+    btn.focus();
+  }, 1300);
+  announce(`${correct} of ${C.stage1.cards.length} correct`);
+}
+
+/* ================= STAGE 2 ================= */
+function wheelSVG(){
+  const n = SCN.length, c = 330, r = 300, seg = 360 / n;
+  const pt = a => { const rad = (a - 90) * Math.PI / 180; return (c + r * Math.cos(rad)).toFixed(2) + " " + (c + r * Math.sin(rad)).toFixed(2); };
+  let segs = "", shades = "", labels = "", pegs = "";
+  SCN.forEach((sc, i) => {
+    const d = `M${c} ${c} L${pt(i*seg)} A${r} ${r} 0 0 1 ${pt((i+1)*seg)} Z`;
+    segs += `<path d="${d}" fill="${sc.color}" stroke="${INK}" stroke-width="5"/>`;
+    shades += `<path class="shade" data-i="${i}" d="${d}" fill="${INK}" fill-opacity=".62" visibility="hidden"/>`;
+    const mid = i*seg + seg/2, lines = sc.wheelLabel;
+    labels += `<g transform="rotate(${mid} ${c} ${c})"><text x="${c}" y="${c - r*0.66}" text-anchor="middle" font-family="Fredoka, sans-serif" font-weight="700" font-size="30" fill="${INK}">${lines.map((l,j) => `<tspan x="${c}" dy="${j ? 32 : 0}">${esc(l)}</tspan>`).join("")}</text>
+      <g class="done" data-i="${i}" visibility="hidden"><rect x="${c-54}" y="${c - r*0.66 + 44}" width="108" height="36" rx="18" fill="#fff6e0" stroke="${INK}" stroke-width="4"/><text x="${c}" y="${c - r*0.66 + 70}" text-anchor="middle" font-family="Fredoka, sans-serif" font-weight="700" font-size="22" fill="${INK}">DONE</text></g></g>`;
+    const b = (i*seg - 90) * Math.PI / 180;
+    pegs += `<circle cx="${(c + (r-8)*Math.cos(b)).toFixed(1)}" cy="${(c + (r-8)*Math.sin(b)).toFixed(1)}" r="9" fill="#fff6e0" stroke="${INK}" stroke-width="4"/>`;
+  });
+  let bulbs = "";
+  for (let i = 0; i < 24; i++) { const a = (i*15) * Math.PI / 180; bulbs += `<circle class="tw d${i%2*2}" cx="${(c + (r+16)*Math.cos(a)).toFixed(1)}" cy="${(c + (r+16)*Math.sin(a)).toFixed(1)}" r="6" fill="#fff4a8"/>`; }
+  return `<svg id="wheel" viewBox="-10 -30 680 700" role="img" aria-label="Threat wheel with ${n} scenarios">
+    <circle cx="${c}" cy="${c}" r="${r+28}" fill="${INK}"/><circle cx="${c}" cy="${c}" r="${r+22}" fill="#3a2a80"/>${bulbs}
+    <g id="wheelRot" transform="rotate(0 ${c} ${c})">${segs}${shades}${labels}${pegs}</g>
+    <circle cx="${c}" cy="${c}" r="62" fill="#ffd23f" stroke="${INK}" stroke-width="6"/><text x="${c}" y="${c+12}" text-anchor="middle" font-family="Fredoka, sans-serif" font-weight="700" font-size="34" fill="${INK}">SPIN</text>
+    <path class="pointer" d="M${c-34} -24 L${c+34} -24 L${c} 56 Z" fill="#ff4fa3" stroke="${INK}" stroke-width="6" stroke-linejoin="round"/>
+  </svg>`;
+}
+function buildS2(){
+  $("#scr-s2").innerHTML = `<div class="s2-grid">
+    <div class="wheel-col">${wheelSVG()}
+      <div class="spin-row"><button class="btn pink" id="spinBtn" type="button">Spin the wheel</button><div class="pips" id="pips" aria-hidden="true"></div></div>
+    </div>
+    <div class="s2-panel sticker" id="s2Panel" aria-live="polite"></div></div>`;
+  $("#spinBtn").onclick = spin;
+  // restore rotation / done markers (if rebuilt)
+  $("#wheelRot").setAttribute("transform", `rotate(${S.s2.rotation} 330 330)`);
+  S.s2.spun.forEach(markDone);
+  renderSpin(); renderS2Idle();
+}
+function spinsLeft(){ return SPINS - S.s2.spun.length; }
+function renderSpin(){
+  const b = $("#spinBtn"); if (!b) return;
+  const st = S.s2, left = spinsLeft();
+  b.disabled = st.spinning || st.current !== null || left <= 0;
+  b.textContent = st.spinning ? "Spinning…" : (left <= 0 ? "All spins done" : `Spin ${st.spun.length + 1} of ${SPINS}`);
+  $("#pips").innerHTML = Array.from({length: SPINS}, (_, i) => `<span class="pip ${i < st.spun.length ? "used" : ""}"></span>`).join("");
+}
+function markDone(i){ $$(`#wheel [data-i="${i}"]`).forEach(el => el.setAttribute("visibility", "visible")); }
+function scenarioScore(i){ return S.s2.answers.filter(a => a.scn === i && a.right).length; }
+function renderS2Idle(){
+  const st = S.s2, left = spinsLeft(), panel = $("#s2Panel");
+  let h = `<div class="stage-title"><span class="num">Stage 2</span><h2>${esc(C.stageNames.s2)}</h2></div>`;
+  if (!st.spun.length) {
+    h += `<div class="idle"><p class="big">Each slice is a way offenders could target the precinct's ID scanners. Spin to reveal a threat, then answer three quick questions as a class:</p>
+      <ul class="done-list">${C.stage2.prompts.map((p,i) => `<li><span class="dot" style="background:${["#ffd23f","#2ee6d6","#ff4fa3"][i]}"></span>${esc(p)}</li>`).join("")}</ul>
+      <p class="lead">${SPINS} spins · +${C.points.question} points per correct answer · no repeats</p></div>`;
+  } else {
+    const last = st.spun[st.spun.length - 1];
+    h += `<div class="idle"><p class="big">${left ? `Threat mapped! <b style="color:var(--yellow)">${scenarioScore(last)} of 3</b> correct on “${esc(SCN[last].title)}”. Spin again for the next one.` : "All threats mapped. Time to write the audit report."}</p>
+      <ul class="done-list">${st.spun.map(i => `<li><span class="dot" style="background:${SCN[i].color}"></span>${esc(SCN[i].title)}<span class="sc">${scenarioScore(i)} / 3</span></li>`).join("")}</ul>
+      ${left ? "" : `<div><button class="btn" id="toS3" type="button">Write the audit report ${I.arrow}</button></div>`}</div>`;
+  }
+  panel.innerHTML = h;
+  const b = $("#toS3"); if (b) { b.onclick = () => goStage("s3"); b.focus(); }
+}
+function spin(){
+  const st = S.s2;
+  if (st.spinning || st.current !== null || spinsLeft() <= 0) return;
+  Sound.ensure();
+  const avail = SCN.map((_, i) => i).filter(i => !st.spun.includes(i));
+  const k = avail[Math.floor(Math.random() * avail.length)];
+  const seg = 360 / SCN.length, jitter = (Math.random() - 0.5) * seg * 0.6;
+  const targetMod = ((360 - (k*seg + seg/2 + jitter)) % 360 + 360) % 360;
+  const cur = st.rotation, curMod = ((cur % 360) + 360) % 360;
+  let delta = targetMod - curMod; if (delta < 0) delta += 360;
+  const end = cur + 360 * 5 + delta, dur = C.stage2.spinSeconds * 1000 * (reduced ? 0.4 : 1);
+  st.spinning = true; renderSpin();
+  const rot = $("#wheelRot"), pointer = $("#wheel .pointer");
+  const t0 = performance.now(); let lastSeg = Math.floor(cur / seg);
+  const frame = t => {
+    if (S.stage !== "s2" || !document.body.contains(rot)) { st.spinning = false; return; }
+    const p = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - p, 4), r = cur + (end - cur) * e;
+    rot.setAttribute("transform", `rotate(${r.toFixed(2)} 330 330)`);
+    const sg = Math.floor(r / seg);
+    if (sg !== lastSeg) { lastSeg = sg; Sound.tick(); pointer.classList.remove("flick"); void pointer.getBoundingClientRect(); pointer.classList.add("flick"); }
+    if (p < 1) requestAnimationFrame(frame);
+    else { st.rotation = end; st.spinning = false; landed(k); }
+  };
+  requestAnimationFrame(frame);
+}
+function landed(k){
+  const st = S.s2;
+  st.spun.push(k); st.current = k; st.qi = 0; st.answered = false;
+  st.order = SCN[k].questions.map(q => C.stage2.shuffleOptions ? shuffle(q.options.map((_, i) => i)) : q.options.map((_, i) => i));
+  markDone(k); Sound.land(); renderSpin(); renderQuestion();
+  announce(`Landed on ${SCN[k].title}`);
+}
+function renderQuestion(){
+  const st = S.s2, sc = SCN[st.current], q = sc.questions[st.qi], order = st.order[st.qi];
+  const prompt = q.prompt || C.stage2.prompts[st.qi] || "";
+  $("#s2Panel").innerHTML = `<span class="scn-tag" style="background:${sc.color}">Threat ${st.spun.length} of ${SPINS} · ${esc(sc.wheelLabel.join(" "))}</span>
+    <h2>${esc(sc.title)}</h2>
+    <p class="story">${esc(sc.story)}</p>
+    <div class="qhead"><span class="qcount">Q${st.qi + 1} of ${sc.questions.length}</span><h3>${esc(prompt)}</h3></div>
+    <div class="opts" role="group" aria-label="${esc(prompt)}">${order.map((oi, pos) => `<button class="opt" type="button" data-pos="${pos}"><span class="k">${pos + 1}</span><span class="t">${esc(q.options[oi])}</span><span class="m"></span></button>`).join("")}</div>
+    <div class="explain" id="explain" hidden></div>`;
+  $$("#s2Panel .opt").forEach(b => b.onclick = () => answer(+b.dataset.pos));
+}
+function answer(pos){
+  const st = S.s2; if (st.current === null || st.answered) return;
+  const sc = SCN[st.current], q = sc.questions[st.qi], order = st.order[st.qi];
+  if (pos < 0 || pos >= order.length) return;
+  st.answered = true;
+  const chosen = order[pos], right = chosen === q.correct;
+  st.answers.push({ scn: st.current, qi: st.qi, prompt: q.prompt || C.stage2.prompts[st.qi], chosen: q.options[chosen], correct: q.options[q.correct], right });
+  $$("#s2Panel .opt").forEach(b => {
+    const oi = order[+b.dataset.pos]; b.disabled = true;
+    if (oi === q.correct) { b.classList.add("is-right"); b.querySelector(".m").innerHTML = I.tick + (right ? "Correct" : "Right answer"); }
+    else if (+b.dataset.pos === pos) { b.classList.add("is-wrong"); b.querySelector(".m").innerHTML = I.cross + "Your pick"; }
+    else b.classList.add("dim");
+  });
+  if (right) { Sound.good(); addScore(C.points.question); } else Sound.bad();
+  const last = st.qi >= sc.questions.length - 1;
+  const nextTxt = !last ? "Next question" : (spinsLeft() > 0 ? "Back to the wheel" : "See results");
+  const ex = $("#explain"); ex.hidden = false;
+  ex.innerHTML = `<p><b>${right ? "Correct!" : "Not quite."}</b> ${esc(q.explanation)}</p><button class="btn" id="nextQ" type="button">${nextTxt} ${I.arrow}</button>`;
+  $("#nextQ").onclick = nextQuestion; $("#nextQ").focus();
+  announce(right ? "Correct" : "Incorrect. The answer is " + q.options[q.correct]);
+}
+function nextQuestion(){
+  const st = S.s2; if (!st.answered) return;
+  const sc = SCN[st.current];
+  if (st.qi < sc.questions.length - 1) { st.qi++; st.answered = false; renderQuestion(); }
+  else { st.current = null; st.answered = false; renderSpin(); renderS2Idle(); const b = $("#spinBtn"); if (b && !b.disabled) b.focus(); }
+}
+
+/* ================= STAGE 3 ================= */
+function buildS3(){
+  const st = S.s3, spun = S.s2.spun;
+  const boxes = spun.map(i => {
+    const sc = SCN[i], shown = st.hints[sc.id];
+    return `<div class="rbox"><div class="rbox-top"><span class="dot" style="background:${sc.color}"></span><h3>${esc(sc.title)}</h3><span class="sc">${scenarioScore(i)}/3 correct</span></div>
+      <label for="strat-${sc.id}">${esc(C.stage3.strategyPrompt)}</label>
+      <textarea id="strat-${sc.id}" data-scn="${sc.id}" rows="3" placeholder="e.g. who should do what, and how would it stop the offender?">${esc(st.strat[sc.id] || "")}</textarea>
+      <div class="hint-row" id="hints-${sc.id}">${shown ? hintChips(sc) : `<button class="hint-btn" type="button" data-hint="${sc.id}">${esc(C.stage3.hintLabel)}</button>`}</div></div>`;
+  }).join("");
+  const none = spun.length ? "" : `<div class="rbox"><h3>No threats spun this round</h3><p style="font-size:24px">Skip back with <span class="key">R</span> to restart, or jot general prevention ideas in the box.</p></div>`;
+  $("#scr-s3").innerHTML = `<div class="board-wrap"><div class="board"><span class="clip" aria-hidden="true"></span><div class="paper">
+    <div class="paper-head"><div class="stage-title"><span class="num">Stage 3</span><h2>${esc(C.stageNames.s3)}</h2></div>
+      <div class="meta">${esc(dateStr())}<br>Team score <b>${S.score}</b> / ${MAX_SCORE}</div></div>
+    <div class="rgrid">${boxes}${none}
+      <div class="rbox surprise"><div class="rbox-top"><h3>${esc(C.stage3.surprisePrompt)}</h3></div>
+      <label for="surprise" class="visually-hidden">${esc(C.stage3.surprisePrompt)}</label>
+      <textarea id="surprise" rows="3" placeholder="e.g. we didn't know the data is deleted after 30 days…">${esc(st.surprise)}</textarea></div>
+    </div>
+    <div class="paper-actions">
+      <button class="btn teal small" id="copyBtn" type="button">${I.copy} Copy .txt</button>
+      <span class="spacer"></span>
+      <button class="btn pink" id="finishBtn" type="button">Finish audit ${I.arrow}</button>
+    </div></div></div></div>`;
+  const scr = $("#scr-s3");
+  scr.addEventListener("input", e => {
+    if (e.target.id === "surprise") st.surprise = e.target.value;
+    else if (e.target.dataset.scn) st.strat[e.target.dataset.scn] = e.target.value;
+  });
+  scr.addEventListener("click", e => {
+    const hb = e.target.closest("[data-hint]"); if (!hb) return;
+    const sc = SCN.find(s => s.id === hb.dataset.hint); st.hints[sc.id] = true;
+    $("#hints-" + sc.id).innerHTML = hintChips(sc); Sound.pop();
+  });
+  $("#copyBtn").onclick = copyReport;
+  $("#finishBtn").onclick = () => goStage("end");
+}
+function hintChips(sc){ return `<span style="font-size:20px;font-weight:700;color:#3b2f5c">Think about:</span>` + sc.hints.map((h,i) => `<span class="hint-chip" style="animation-delay:${i*0.12}s">${esc(h)}</span>`).join(""); }
+
+/* ================= REPORT ================= */
+function dateStr(){ try { return new Date().toLocaleString("en-AU", { weekday:"short", day:"numeric", month:"long", year:"numeric", hour:"numeric", minute:"2-digit" }); } catch(e) { return new Date().toString(); } }
+function rankFor(score){ const pct = score / MAX_SCORE; let r = C.ranks[0]; C.ranks.forEach(x => { if (pct >= x.min) r = x; }); return r; }
+function buildReport(){
+  const L = [], rule = "-".repeat(56), rank = rankFor(S.score);
+  L.push("SCAN & SCAM: ID SCANNER SAFETY AUDIT", C.location, "Date: " + dateStr(), `Final score: ${S.score} / ${MAX_SCORE} (${rank.title})`, "");
+  L.push(rule, "STAGE 1 · " + C.stageNames.s1.toUpperCase(), rule);
+  if (S.s1.skipped) L.push("Skipped.");
+  else if (S.s1.checked) {
+    L.push(`Cards sorted correctly: ${S.s1.correct} / ${C.stage1.cards.length}`);
+    C.stage1.cards.forEach(c => { const want = c.logged ? "logged" : "not", got = S.s1.initial[c.id];
+      L.push(`  [${got === want ? "correct" : "wrong"}] ${c.text}: ${C.stage1.bins[want]}${got === want ? "" : ` (we said: ${got === "pool" ? "left unsorted" : C.stage1.bins[got]})`}`); });
+  } else L.push("Not checked.");
+  L.push("", rule, "STAGE 2 · " + C.stageNames.s2.toUpperCase(), rule);
+  if (!S.s2.spun.length) L.push("No scenarios spun.");
+  S.s2.spun.forEach((i, n) => {
+    const sc = SCN[i]; L.push(`${n+1}. ${sc.title} (${sc.wheelLabel.join(" ")}): ${scenarioScore(i)}/3 correct`, `   ${sc.story}`);
+    S.s2.answers.filter(a => a.scn === i).forEach(a => {
+      L.push(`   Q${a.qi+1} ${a.prompt}`, `      Our answer: ${a.chosen} [${a.right ? "correct" : "wrong"}]`);
+      if (!a.right) L.push(`      Correct answer: ${a.correct}`);
+    });
+    L.push("");
+  });
+  L.push(rule, "STAGE 3 · " + C.stageNames.s3.toUpperCase(), rule);
+  S.s2.spun.forEach((i, n) => { const sc = SCN[i]; L.push(`${n+1}. ${sc.title}: ${C.stage3.strategyPrompt}`, "   " + ((S.s3.strat[sc.id] || "").trim() || "(no answer)"), ""); });
+  L.push(C.stage3.surprisePrompt + ":", "   " + (S.s3.surprise.trim() || "(no answer)"), "");
+  return L.join("\n");
+}
+async function copyReport(){
+  const text = buildReport();
+  try { await navigator.clipboard.writeText(text); toast("Report copied to clipboard"); return; } catch(e) {}
+  try {
+    const ta = document.createElement("textarea"); ta.value = text; ta.setAttribute("readonly", ""); ta.style.position = "fixed"; ta.style.opacity = "0";
+    document.body.appendChild(ta); ta.select(); const ok = document.execCommand("copy"); ta.remove();
+    if (ok) { toast("Report copied to clipboard"); return; }
+  } catch(e) {}
+  showCopyBox(text, "Copy the report");
+}
+function showCopyBox(text, title){
+  const box = $("#copyBox");
+  box.innerHTML = `<div class="dialog sticker" role="dialog" aria-labelledby="cbH"><h2 id="cbH" style="font-size:52px;text-shadow:none">${esc(title)}</h2><p style="font-size:24px">Your browser blocked automatic copying here. The report is selected below: press Ctrl+C (or ⌘C).</p><textarea id="cbText" readonly>${esc(text)}</textarea><button class="btn" id="cbClose" type="button">Done</button></div>`;
+  box.hidden = false; const ta = $("#cbText"); ta.focus(); ta.select();
+  $("#cbClose").onclick = () => { box.hidden = true; box.innerHTML = ""; };
+}
+/* ================= END ================= */
+function badge(){ return `<svg viewBox="0 0 70 70" aria-hidden="true"><circle cx="35" cy="35" r="31" fill="#ffd23f" stroke="${INK}" stroke-width="5"/><path d="M35 14l6 13 14 2-10 10 3 14-13-7-13 7 3-14-10-10 14-2z" fill="#ff4fa3" stroke="${INK}" stroke-width="3.5" stroke-linejoin="round"/></svg>`; }
+function buildEnd(){
+  const rank = rankFor(S.score);
+  $("#scr-end").innerHTML = `<div class="end-card sticker">
+    <h2>Audit complete!</h2>
+    <div class="final" aria-label="Final score ${S.score} out of ${MAX_SCORE}">${S.score}<small> / ${MAX_SCORE}</small></div>
+    <div class="rank">${badge()}${esc(rank.title)}</div>
+    <p class="blurb">${esc(rank.blurb)}</p>
+    <div class="end-row"><button class="btn pink" id="againBtn" type="button">${I.restart} Play again</button>
+    <button class="btn teal small" id="copyBtn2" type="button">${I.copy} Copy .txt</button></div></div>`;
+  $("#againBtn").onclick = restart; $("#copyBtn2").onclick = copyReport;
+  Sound.fanfare(); startConfetti();
+  setTimeout(() => { const b = $("#againBtn"); b && b.focus(); }, 50);
+}
+
+/* ================= CONFETTI ================= */
+let confRAF = null;
+function startConfetti(){
+  const cv = $("#confetti"), ctx = cv.getContext("2d"), cols = ["#ff4fa3","#2ee6d6","#ffd23f","#ff8a3d","#9b6bff","#fff6e0"];
+  const n = reduced ? 60 : 220, parts = [];
+  for (let i = 0; i < n; i++) parts.push({ x: Math.random()*1920, y: -Math.random()*900, w: 10 + Math.random()*12, h: 14 + Math.random()*16, vy: 3 + Math.random()*5, vx: -2 + Math.random()*4, r: Math.random()*6, vr: -0.15 + Math.random()*0.3, c: cols[i % cols.length] });
+  const t0 = performance.now();
+  cancelAnimationFrame(confRAF);
+  const step = t => {
+    ctx.clearRect(0, 0, 1920, 1080);
+    const alive = t - t0 < 6500;
+    parts.forEach(p => { p.x += p.vx; p.y += p.vy; p.r += p.vr; if (p.y > 1100 && alive) { p.y = -20; p.x = Math.random()*1920; }
+      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.r); ctx.fillStyle = p.c; ctx.strokeStyle = INK; ctx.lineWidth = 2.5; ctx.fillRect(-p.w/2, -p.h/2, p.w, p.h); ctx.strokeRect(-p.w/2, -p.h/2, p.w, p.h); ctx.restore(); });
+    if (alive || parts.some(p => p.y < 1100)) confRAF = requestAnimationFrame(step); else ctx.clearRect(0, 0, 1920, 1080);
+  };
+  confRAF = requestAnimationFrame(step);
+}
+function stopConfetti(){ cancelAnimationFrame(confRAF); const cv = $("#confetti"); cv.getContext("2d").clearRect(0, 0, 1920, 1080); }
+
+/* ================= CONFIRM RESTART ================= */
+function openConfirm(){
+  const box = $("#confirmBox");
+  box.innerHTML = `<div class="dialog sticker confirm" role="alertdialog" aria-labelledby="crH"><h2 id="crH">Restart the game?</h2><p>The score and report will be cleared.</p>
+    <div class="row"><button class="btn pink" id="crYes" type="button">${I.restart} Restart <span class="key">R</span></button><button class="btn ghost" id="crNo" type="button">Keep playing <span class="key">Esc</span></button></div></div>`;
+  box.hidden = false; $("#crYes").onclick = restart; $("#crNo").onclick = closeConfirm; $("#crNo").focus();
+}
+function closeConfirm(){ const b = $("#confirmBox"); b.hidden = true; b.innerHTML = ""; }
+
+/* ================= KEYBOARD ================= */
+function primary(){
+  if (!$("#timesUp").hidden) { hideTimesUp(); return advance(); }
+  const st = S.stage;
+  if (st === "intro") return goStage("s1");
+  if (st === "s1") return S.s1.checked ? goStage("s2") : checkS1();
+  if (st === "s2") {
+    const s2 = S.s2; if (s2.spinning) return;
+    if (s2.current !== null) { if (s2.answered) nextQuestion(); else toast("Pick an answer: press 1–4"); return; }
+    if (spinsLeft() > 0) return spin();
+    return goStage("s3");
+  }
+  if (st === "s3") return goStage("end");
+}
+document.addEventListener("keydown", e => {
+  const tag = (e.target && e.target.tagName) || "";
+  if (tag === "TEXTAREA" || tag === "INPUT") { if (e.key === "Escape") e.target.blur(); return; }
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  if (!$("#copyBox").hidden) { if (e.key === "Escape") { $("#copyBox").hidden = true; } return; }
+  if (!$("#confirmBox").hidden) {
+    if (e.code === "KeyR") { e.preventDefault(); restart(); }
+    else if (e.key === "Escape") closeConfirm();
+    return;
+  }
+  if (e.code === "Space") { e.preventDefault(); if (!e.repeat) primary(); return; }
+  if (e.code === "KeyP") { togglePause(); return; }
+  if (e.code === "KeyR") { openConfirm(); return; }
+  if (e.code === "KeyM") { toggleMute(); return; }
+  if (S.stage === "s2" && S.s2.current !== null && !S.s2.answered) {
+    const map = { Digit1:0, Digit2:1, Digit3:2, Digit4:3, Numpad1:0, Numpad2:1, Numpad3:2, Numpad4:3, KeyA:0, KeyB:1, KeyC:2, KeyD:3 };
+    if (e.code in map) answer(map[e.code]);
+  }
+});
+function togglePause(){ S.paused = !S.paused; timer.last = performance.now(); renderTopbar(); toast(S.paused ? "Timer paused" : "Timer running"); }
+function toggleMute(){ Sound.muted = !Sound.muted; if (!Sound.muted) { Sound.ensure(); Sound.pop(); } renderTopbar(); }
+
+$("#pauseBtn").onclick = togglePause;
+$("#muteBtn").onclick = toggleMute;
+$("#restartBtn").onclick = openConfirm;
+$("#skipBtn").onclick = () => { if (S.stage === "s1" && !S.s1.checked) { S.s1.checked = true; S.s1.skipped = true; return goStage("s2"); } advance(); };
+
+/* ================= BOOT ================= */
+$("#world").innerHTML = sceneSVG();
+S = freshState();
+fit(); window.addEventListener("resize", fit);
+goStage("intro");
+})();
+</script>
+
+</body>
+</html>
